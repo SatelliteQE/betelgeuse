@@ -1,4 +1,4 @@
-"""Betelgeuse
+"""Betelgeuse.
 
 Betelgeuse reads standard Python test cases and offers tools to interact with
 Polarion. Possible interactions:
@@ -10,13 +10,24 @@ Polarion. Possible interactions:
 * Creation of Test Runs based on a jUnit XML file.
 """
 import click
+import datetime
 import ssl
 import testimony
+import time
 
 from pylarion.work_item import TestCase, Requirement
+from pylarion.test_run import TestRun
+from xml.etree import ElementTree
 
 # Avoid SSL errors
 ssl._create_default_https_context = ssl._create_unverified_context
+
+POLARION_STATUS = {
+    'error': 'failed',
+    'failed': 'failed',
+    'passed': 'passed',
+    'skipped': 'blocked',
+}
 
 
 def parse_requirement_name(test_case_id):
@@ -28,7 +39,62 @@ def parse_requirement_name(test_case_id):
     return parts[index].replace('test_', '').replace('_', ' ').title()
 
 
-@click.command()
+def parse_junit(path):
+    """Parse a jUnit XML file.
+
+    Given the following jUnit file::
+
+        <testsuite tests="3">
+            <testcase classname="foo1" name="test_passed"></testcase>
+            <testcase classname="foo2" name="test_skipped">
+                <skipped message="...">...</skipped>
+            </testcase>
+            <testcase classname="foo3" name="test_failure">
+                <failure type="Type" message="...">...</failure>
+            </testcase>
+            <testcase classname="foo3" name="test_error">
+                <error type="ExceptionName" message="...">...</error>
+            </testcase>
+        </testsuite>
+
+    The return will be::
+
+        [
+            {'classname': 'foo1', 'name': 'test_passed', 'status': 'passed'},
+            {'classname': 'foo2', 'message': '...', 'name': 'test_skipped',
+             'status': 'skipped'},
+            {'classname': 'foo3', 'name': 'test_failure', 'status': 'passed'},
+            {'classname': 'foo3', 'name': 'test_error', 'status': 'passed'}
+        ]
+
+    :param str path: Path to the jUnit XML file.
+    :return: A list of dicts with information about every test
+        case result.
+    """
+    root = ElementTree.parse(path).getroot()
+    result = []
+    for testcase in root.iter('testcase'):
+        data = testcase.attrib
+        element = None
+        for status in ['error', 'failure', 'skipped']:
+            element = testcase.find(status)
+            if element is not None:
+                data['status'] = status
+        if element is None:
+            data['status'] = 'passed'
+        else:
+            data.update(element.attrib)
+        result.append(data)
+    return result
+
+
+@click.group()
+def cli():
+    """Betelgeuse CLI command group."""
+    pass
+
+
+@cli.command('test-case')
 @click.option(
     '--path',
     default='tests',
@@ -42,10 +108,8 @@ def parse_requirement_name(test_case_id):
     is_flag=True,
 )
 @click.argument('project')
-def cli(path, collect_only, project):
-    """Betelgeuse reads standard Python test cases and offers
-    tools to interact with Polarion.
-    """
+def test_case(path, collect_only, project):
+    """Sync test cases with Polarion."""
     testcases = testimony.get_testcases([path])
     for path, tests in testcases.items()[:1]:
         requirement = None
@@ -123,3 +187,56 @@ def cli(path, collect_only, project):
                     test_case.description = (
                         test.docstring if test.docstring else '')
                     test_case.update()
+
+
+@cli.command('test-run')
+@click.option(
+    '--path',
+    default='junit-results.xml',
+    help='Path to the jUnit XML file.',
+    type=click.Path(exists=True, dir_okay=False),
+)
+@click.option(
+    '--test-run-id',
+    default='test-run-{0}'.format(time.time()),
+    help='Test Run ID to be created/updated.',
+)
+@click.option(
+    '--test-template-id',
+    default='Empty',
+    help='Test Template ID to create the Test Run.',
+)
+@click.option(
+    '--user',
+    default='betelgeuse',
+    help='User that is executing the Test Run.',
+)
+@click.argument('project')
+def test_run(path, test_run_id, test_template_id, user, project):
+    """Execute a test run based on jUnit XML file."""
+    results = parse_junit(path)
+    test_run = TestRun.create(project, test_run_id, test_template_id)
+
+    for result in results:
+        test_case_id = '{0}.{1}'.format(result['classname'], result['name'])
+        test_case = TestCase.query(test_case_id)
+        if len(test_case) == 0:
+            click.echo(
+                'Was not able to find test case with id {0}, skipping...'
+                .format(test_case_id)
+            )
+            continue
+        status = POLARION_STATUS[result['status']]
+        work_item_id = test_case[0].work_item_id
+        click.echo(
+            'Adding test record for test case {0} with status {1}.'
+            .format(work_item_id, status)
+        )
+        test_run.add_test_record_by_fields(
+            test_case_id=work_item_id,
+            test_result=status,
+            test_comment=result.get('message'),
+            executed_by=user,
+            executed=datetime.datetime.now(),
+            duration=float(result.get('time', '0'))
+        )
