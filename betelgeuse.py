@@ -11,13 +11,17 @@ Polarion. Possible interactions:
 """
 import click
 import datetime
+import logging
 import ssl
 import testimony
 import time
 
+from pylarion.exceptions import PylarionLibException
 from pylarion.work_item import TestCase, Requirement
 from pylarion.test_run import TestRun
 from xml.etree import ElementTree
+
+logging.captureWarnings(True)
 
 # Avoid SSL errors
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -215,7 +219,13 @@ def test_case(path, collect_only, project):
 def test_run(path, test_run_id, test_template_id, user, project):
     """Execute a test run based on jUnit XML file."""
     results = parse_junit(path)
-    test_run = TestRun.create(project, test_run_id, test_template_id)
+    try:
+        test_run = TestRun(test_run_id, project_id=project)
+        click.echo('Test run {0} found.'.format(test_run_id))
+    except PylarionLibException as err:
+        click.echo(err, err=True)
+        click.echo('Creating test run {0}.'.format(test_run_id))
+        test_run = TestRun.create(project, test_run_id, test_template_id)
 
     for result in results:
         test_case_id = '{0}.{1}'.format(result['classname'], result['name'])
@@ -232,11 +242,15 @@ def test_run(path, test_run_id, test_template_id, user, project):
             'Adding test record for test case {0} with status {1}.'
             .format(work_item_id, status)
         )
-        test_run.add_test_record_by_fields(
-            test_case_id=work_item_id,
-            test_result=status,
-            test_comment=result.get('message'),
-            executed_by=user,
-            executed=datetime.datetime.now(),
-            duration=float(result.get('time', '0'))
-        )
+        try:
+            test_run.add_test_record_by_fields(
+                test_case_id=work_item_id,
+                test_result=status,
+                test_comment=result.get('message'),
+                executed_by=user,
+                executed=datetime.datetime.now(),
+                duration=float(result.get('time', '0'))
+            )
+        except PylarionLibException as err:
+            click.echo('Skipping test case {0}.'.format(work_item_id))
+            click.echo(err, err=True)
