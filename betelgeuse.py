@@ -118,11 +118,15 @@ def test_case(path, collect_only, project):
     for path, tests in testcases.items():
         requirement = None
         for test in tests:
-            test_case_id = '{0}.{1}.{2}'.format(
+            # Expect test_case_id to be path.test_name or
+            # path.ClassName.test_name.
+            test_case_id_parts = [
                 path.replace('/', '.').replace('.py', ''),
-                test.parent_class,
                 test.name
-            )
+            ]
+            if test.parent_class is not None:
+                test_case_id_parts.insert(-1, test.parent_class)
+            test_case_id = '.'.join(test_case_id_parts)
             if requirement is None:
                 requirement_name = parse_requirement_name(test_case_id)
                 results = Requirement.query(
