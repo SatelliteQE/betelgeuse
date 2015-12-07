@@ -111,7 +111,7 @@ def cli():
 def test_case(path, collect_only, project):
     """Sync test cases with Polarion."""
     testcases = testimony.get_testcases([path])
-    for path, tests in testcases.items()[:1]:
+    for path, tests in testcases.items():
         requirement = None
         for test in tests:
             test_case_id = '{0}.{1}.{2}'.format(
