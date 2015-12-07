@@ -98,8 +98,8 @@ def cli():
 @click.option(
     '--path',
     default='tests',
-    help='Path to the tests directories.',
-    type=click.Path(exists=True, file_okay=False),
+    help='Path to the test module or directory.',
+    type=click.Path(exists=True),
 )
 @click.option(
     '--collect-only',
