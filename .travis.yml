@@ -1,0 +1,12 @@
+sudo: false
+language: python
+python:
+    - 2.7
+install:
+    - pip install -r requirements.txt coveralls flake8 pytest pytest-cov
+    - pip install git+https://github.com/elyezer/fake_pylarion.git
+script:
+    - flake8 betelgeuse.py
+    - py.test --cov=betelgeuse tests.py
+after_success:
+    coveralls
