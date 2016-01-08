@@ -33,6 +33,8 @@ POLARION_STATUS = {
     'skipped': 'blocked',
 }
 
+JUNIT_TEST_STATUS = ['error', 'failure', 'skipped']
+
 
 def parse_requirement_name(test_case_id):
     """Return the Requirement name for a given test_case_id."""
@@ -79,15 +81,14 @@ def parse_junit(path):
     result = []
     for testcase in root.iter('testcase'):
         data = testcase.attrib
-        element = None
-        for status in ['error', 'failure', 'skipped']:
-            element = testcase.find(status)
-            if element is not None:
-                data['status'] = status
-        if element is None:
-            data['status'] = 'passed'
-        else:
-            data.update(element.attrib)
+        # Check if the test has passed or else...
+        status = [
+            element.tag for element in list(testcase)
+            if element.tag in JUNIT_TEST_STATUS
+        ]
+        # ... no status means the test has passed
+        data['status'] = status[0] if status else u'passed'
+
         result.append(data)
     return result
 
