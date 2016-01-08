@@ -11,8 +11,8 @@ with open('VERSION') as handle:
 
 setup(
     name='Betelgeuse',
-    author='Elyézer Rezende',
-    author_email='erezende@redhat.com',
+    author='Elyézer Rezende, Og Maciel',
+    author_email='erezende@redhat.com, omaciel@redhat.com',
     version=VERSION,
     py_modules=['betelgeuse'],
     install_requires=['click', 'testimony'],
