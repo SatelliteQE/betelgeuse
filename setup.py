@@ -29,7 +29,9 @@ setup(
         [console_scripts]
         betelgeuse=betelgeuse:cli
     ''',
+    include_package_data=True,
     license='GPLv3',
     long_description=LONG_DESCRIPTION,
+    package_data={'': ['LICENSE']},
     url='https://github.com/SatelliteQE/betelgeuse',
 )
