@@ -28,7 +28,7 @@ ssl._create_default_https_context = ssl._create_unverified_context
 
 POLARION_STATUS = {
     'error': 'failed',
-    'failed': 'failed',
+    'failure': 'failed',
     'passed': 'passed',
     'skipped': 'blocked',
 }
@@ -83,11 +83,15 @@ def parse_junit(path):
         data = testcase.attrib
         # Check if the test has passed or else...
         status = [
-            element.tag for element in list(testcase)
+            element for element in list(testcase)
             if element.tag in JUNIT_TEST_STATUS
         ]
         # ... no status means the test has passed
-        data['status'] = status[0] if status else u'passed'
+        if status:
+            data['status'] = status[0].tag
+            data.update(status[0].attrib)
+        else:
+            data['status'] = u'passed'
 
         result.append(data)
     return result
