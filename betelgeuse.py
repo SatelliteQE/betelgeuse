@@ -179,7 +179,7 @@ def test_case(path, collect_only, project):
                         testtype='functional',
                     )
                 click.echo(
-                    'Liking test case {0} to verify requirement {1}.'
+                    'Linking test case {0} to verify requirement {1}.'
                     .format(test.name, requirement_name)
                 )
                 if not collect_only:
