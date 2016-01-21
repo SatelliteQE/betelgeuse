@@ -157,6 +157,13 @@ def test_case(path, collect_only, project):
                             reqtype='functional'
                         )
 
+            if test.docstring:
+                if not type(test.docstring) == unicode:
+                    test.docstring = test.docstring.decode('utf8')
+                test.docstring = u'<pre>{0}</pre>'.format(test.docstring)
+                test.docstring = test.docstring.encode(
+                    'ascii', 'xmlcharrefreplace')
+
             results = TestCase.query(
                 test_case_id, fields=['description', 'work_item_id'])
             if len(results) == 0:
