@@ -258,11 +258,14 @@ def test_run(path, test_run_id, test_template_id, user, project):
             'Adding test record for test case {0} with status {1}.'
             .format(work_item_id, status)
         )
+        message = result.get('message')
+        if message and type(message) == unicode:
+            message = message.encode('ascii', 'xmlcharrefreplace')
         try:
             test_run.add_test_record_by_fields(
                 test_case_id=work_item_id,
                 test_result=status,
-                test_comment=result.get('message'),
+                test_comment=message,
                 executed_by=user,
                 executed=datetime.datetime.now(),
                 duration=float(result.get('time', '0'))
