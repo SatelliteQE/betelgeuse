@@ -177,6 +177,10 @@ def test_case(path, collect_only, project):
                 test.docstring = test.docstring.encode(
                     'ascii', 'xmlcharrefreplace')
 
+            # Is the test automated? Acceptable values are:
+            # automated, manualonly, and notautomated
+            auto_status = 'automated' if test.automated else 'notautomated'
+
             results = TestCase.query(
                 test_case_id, fields=['description', 'work_item_id'])
             if len(results) == 0:
@@ -189,7 +193,7 @@ def test_case(path, collect_only, project):
                         project,
                         test.name,
                         test.docstring if test.docstring else '',
-                        caseautomation='automated',
+                        caseautomation=auto_status,
                         casecomponent='-',
                         caseimportance='medium',
                         caselevel='component',
@@ -213,12 +217,15 @@ def test_case(path, collect_only, project):
                 # Ensure that a single match for the Test Case is
                 # returned.
                 assert len(results) == 1
-                test_case = results[0]
+                # Fetch the test case in order to get all of its
+                # fields and values.
+                test_case = TestCase(project, results[0].work_item_id)
                 if (not collect_only and
-                        test_case.description != test.docstring):
-                    test_case = TestCase(project, test_case.work_item_id)
+                    (test_case.description != test.docstring or
+                     test_case.caseautomation != auto_status)):
                     test_case.description = (
                         test.docstring if test.docstring else '')
+                    test_case.caseautomation = auto_status
                     test_case.update()
 
 
