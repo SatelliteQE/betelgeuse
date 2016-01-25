@@ -16,6 +16,7 @@ import ssl
 import testimony
 import time
 
+from collections import Counter
 from pylarion.exceptions import PylarionLibException
 from pylarion.work_item import TestCase, Requirement
 from pylarion.test_run import TestRun
@@ -95,6 +96,18 @@ def parse_junit(path):
 
         result.append(data)
     return result
+
+
+def parse_test_results(test_results):
+    """Returns the summary of test results by their status.
+
+    :param test_results: A list of dicts with information about
+        test results, such as those reported in a JUNIT file.
+    :return: A dictionary containing a summary for all test results
+        provided by the ``test_results`` parameter, broken down by their
+        status.
+    """
+    return Counter([test['status'] for test in test_results])
 
 
 @click.group()
@@ -209,11 +222,27 @@ def test_case(path, collect_only, project):
                     test_case.update()
 
 
+@cli.command('test-results')
+@click.option(
+    '--path',
+    default='junit-results.xml',
+    help='Path to the JUNIT XML file.',
+    type=click.Path(exists=True, dir_okay=False),
+)
+def test_results(path):
+    """Shows a summary for test cases contained in a JUNIT xml file."""
+    test_summary = parse_test_results(parse_junit(path))
+    summary = '\n'.join(
+        ["{0}: {1}".format(*status) for status in test_summary.items()]
+    ).title()
+    click.echo(summary)
+
+
 @cli.command('test-run')
 @click.option(
     '--path',
     default='junit-results.xml',
-    help='Path to the jUnit XML file.',
+    help='Path to the JUNIT xml file.',
     type=click.Path(exists=True, dir_okay=False),
 )
 @click.option(
