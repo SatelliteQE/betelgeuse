@@ -1,5 +1,5 @@
 from StringIO import StringIO
-from betelgeuse import parse_junit, parse_requirement_name
+from betelgeuse import parse_junit, parse_requirement_name, parse_test_results
 
 
 JUNIT_XML = """<testsuite tests="4">
@@ -38,3 +38,43 @@ def test_parse_requirement_name():
     ]
     for name in names:
         assert parse_requirement_name(name) == 'Compute Resource'
+
+
+def test_parse_test_results():
+    test_results = [
+        {'status': u'passed',
+         'name': 'test_positive_read',
+         'classname': 'tests.api.test_ReadTestCase',
+         'file': 'tests/api/test_foo.py',
+         'time': '4.13224601746',
+         'line': '521'},
+        {'status': u'passed',
+         'name': 'test_positive_delete',
+         'classname': 'tests.api.test_ReadTestCase',
+         'file': 'tests/api/test_foo.py',
+         'time': '4.13224601746',
+         'line': '538'},
+        {'status': u'failure',
+         'name': 'test_negative_read',
+         'classname': 'tests.api.test_ReadTestCase',
+         'file': 'tests/api/test_foo.py',
+         'time': '4.13224601746',
+         'line': '218'},
+        {'status': u'skipped',
+         'name': 'test_positive_update',
+         'classname': 'tests.api.test_ReadTestCase',
+         'file': 'tests/api/test_foo.py',
+         'time': '4.13224601746',
+         'line': '112'},
+        {'status': u'error',
+         'name': 'test_positive_create',
+         'classname': 'tests.api.test_ReadTestCase',
+         'file': 'tests/api/test_foo.py',
+         'time': '4.13224601746',
+         'line': '788'},
+    ]
+    summary = parse_test_results(test_results)
+    assert summary['passed'] == 2
+    assert summary['failure'] == 1
+    assert summary['skipped'] == 1
+    assert summary['error'] == 1
