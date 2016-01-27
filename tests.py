@@ -32,12 +32,8 @@ def test_parse_junit():
 
 
 def test_parse_requirement_name():
-    names = [
-        'tests.foreman.api.test_compute_resource.ClassName.test_method',
-        'tests.foreman.api.test_compute_resource.test_method',
-    ]
-    for name in names:
-        assert parse_requirement_name(name) == 'Compute Resource'
+    assert parse_requirement_name(
+        'tests/path/to/test_my_test_module.py') == 'My Test Module'
 
 
 def test_parse_test_results():
