@@ -299,7 +299,7 @@ def add_test_record(result):
 @click.option(
     '--jobs',
     '-j',
-    default=1,
+    default='1',
     help='Number of jobs or auto to use the CPU count.',
     type=JOB_NUMBER
 )
