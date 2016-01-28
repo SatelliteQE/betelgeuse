@@ -13,6 +13,7 @@ import click
 import datetime
 import logging
 import multiprocessing
+import re
 import ssl
 import testimony
 import time
@@ -27,6 +28,8 @@ logging.captureWarnings(True)
 
 # Avoid SSL errors
 ssl._create_default_https_context = ssl._create_unverified_context
+
+INVALID_TEST_RUN_CHARS_REGEX = re.compile(r'[\\/.:"<>|~!@#$?%^&\'*()+`,=]')
 
 POLARION_STATUS = {
     'error': 'failed',
@@ -381,6 +384,7 @@ def test_results(path):
 @click.pass_context
 def test_run(context, path, test_run_id, test_template_id, user, project):
     """Execute a test run based on jUnit XML file."""
+    test_run_id = re.sub(INVALID_TEST_RUN_CHARS_REGEX, '', test_run_id)
     results = parse_junit(path)
     try:
         test_run = TestRun(test_run_id, project_id=project)

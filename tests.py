@@ -1,5 +1,12 @@
+import re
+
 from StringIO import StringIO
-from betelgeuse import parse_junit, parse_requirement_name, parse_test_results
+from betelgeuse import (
+    INVALID_TEST_RUN_CHARS_REGEX,
+    parse_junit,
+    parse_requirement_name,
+    parse_test_results,
+)
 
 
 JUNIT_XML = """<testsuite tests="4">
@@ -29,6 +36,11 @@ def test_parse_junit():
          'status': 'error', 'type': 'ExceptionName'}
     ]
     junit_xml.close()
+
+
+def test_invalid_test_run_chars_regex():
+    invalid_test_run_id = '\\/.:*"<>|~!@#$?%^&\'*()+`,='
+    assert re.sub(INVALID_TEST_RUN_CHARS_REGEX, '', invalid_test_run_id) == ''
 
 
 def test_parse_requirement_name():
