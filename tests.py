@@ -7,6 +7,7 @@ import re
 from click.testing import CliRunner
 from betelgeuse import (
     INVALID_TEST_RUN_CHARS_REGEX,
+    RST_PARSER,
     JobNumberParamType,
     PylarionLibException,
     add_test_case,
@@ -80,7 +81,7 @@ def test_add_test_case_create():
             patches['TestCase'].create.assert_called_once_with(
                 'PROJECT',
                 'test_name',
-                '<pre>Test the name feature</pre>',
+                '<p>Test the name feature</p>\n',
                 caseautomation='automated',
                 casecomponent='-',
                 caseimportance='medium',
@@ -136,6 +137,12 @@ def test_parse_junit():
          'status': 'error', 'type': 'ExceptionName'}
     ]
     junit_xml.close()
+
+
+def test_rst_parser():
+    docstring = """Line one"""
+    generated_html = "<p>Line one</p>\n"
+    assert RST_PARSER.parse(docstring) == generated_html
 
 
 def test_invalid_test_run_chars_regex():
