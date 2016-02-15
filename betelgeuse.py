@@ -210,8 +210,10 @@ def add_test_case(args):
         # automated, manualonly, and notautomated
         auto_status = 'automated' if test.automated else 'notautomated'
 
-        results = TestCase.query(
-            test_case_id, fields=['description', 'work_item_id'])
+        results = []
+        if not collect_only:
+            results = TestCase.query(
+                test_case_id, fields=['description', 'work_item_id'])
         if len(results) == 0:
             click.echo(
                 'Creating test case {0} for requirement {1}.'
@@ -334,12 +336,14 @@ def test_case(context, path, collect_only, project):
     OBJ_CACHE['collect_only'] = collect_only
     OBJ_CACHE['project'] = project
 
-    TestCase.session.tx_begin()
+    if not collect_only:
+        TestCase.session.tx_begin()
     pool = multiprocessing.Pool(context.obj['jobs'])
     pool.map(add_test_case, testcases.items())
     pool.close()
     pool.join()
-    TestCase.session.tx_commit()
+    if not collect_only:
+        TestCase.session.tx_commit()
 
 
 @cli.command('test-results')
