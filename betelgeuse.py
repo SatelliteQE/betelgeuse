@@ -213,7 +213,9 @@ def add_test_case(args):
         results = []
         if not collect_only:
             results = TestCase.query(
-                test_case_id, fields=['description', 'work_item_id'])
+                test_case_id,
+                fields=['caseautomation', 'description', 'work_item_id']
+            )
         if len(results) == 0:
             click.echo(
                 'Creating test case {0} for requirement {1}.'
@@ -248,9 +250,7 @@ def add_test_case(args):
             # Ensure that a single match for the Test Case is
             # returned.
             assert len(results) == 1
-            # Fetch the test case in order to get all of its
-            # fields and values.
-            test_case = TestCase(project, results[0].work_item_id)
+            test_case = results[0]
             if (not collect_only and
                 (test_case.description != test.docstring or
                     test_case.caseautomation != auto_status)):
