@@ -1,7 +1,7 @@
 Betelgeuse
 ==========
 
-.. image:: https://coveralls.io/repos/SatelliteQE/betelgeuse/badge.svg?branch=master&service=github
+.. image:: https://coveralls.io/repos/github/SatelliteQE/betelgeuse/badge.svg?branch=master
     :target: https://coveralls.io/github/SatelliteQE/betelgeuse?branch=master
 
 Betelgeuse reads standard Python test cases and offers tools to interact with
