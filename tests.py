@@ -1,12 +1,22 @@
+import betelgeuse
+import click
+import mock
+import pytest
 import re
 
-from StringIO import StringIO
+from click.testing import CliRunner
 from betelgeuse import (
     INVALID_TEST_RUN_CHARS_REGEX,
+    JobNumberParamType,
+    PylarionLibException,
+    add_test_case,
+    add_test_record,
+    cli,
     parse_junit,
     parse_requirement_name,
     parse_test_results,
 )
+from StringIO import StringIO
 
 
 JUNIT_XML = """<testsuite tests="4">
@@ -22,6 +32,96 @@ JUNIT_XML = """<testsuite tests="4">
     </testcase>
 </testsuite>
 """
+
+TEST_MODULE = '''
+def test_something():
+    """This test something."""
+
+def test_something_else():
+    """This test something else."""
+'''
+
+
+@pytest.fixture
+def cli_runner():
+    return CliRunner()
+
+
+def test_add_test_case_create():
+    obj_cache = {
+        'collect_only': False,
+        'project': 'PROJECT',
+    }
+    with mock.patch.dict('betelgeuse.OBJ_CACHE', obj_cache):
+        with mock.patch.multiple(
+                'betelgeuse',
+                Requirement=mock.DEFAULT,
+                TestCase=mock.DEFAULT,
+        ) as patches:
+            patches['Requirement'].return_value = []
+            test = mock.MagicMock()
+            test.name = 'test_name'
+            test.docstring = 'Test the name feature'
+            test.parent_class = 'NameTestCase'
+            add_test_case(('path/to/test_module.py', [test]))
+            patches['Requirement'].query.assert_called_once_with(
+                'Module', fields=['title', 'work_item_id'])
+            patches['Requirement'].create.assert_called_once_with(
+                'PROJECT', 'Module', '', reqtype='functional')
+            patches['TestCase'].query.assert_called_once_with(
+                'path.to.test_module.NameTestCase.test_name',
+                fields=[
+                    'caseautomation',
+                    'caseposneg',
+                    'description',
+                    'work_item_id',
+                ]
+            )
+            patches['TestCase'].create.assert_called_once_with(
+                'PROJECT',
+                'test_name',
+                '<pre>Test the name feature</pre>',
+                caseautomation='automated',
+                casecomponent='-',
+                caseimportance='medium',
+                caselevel='component',
+                caseposneg='positive',
+                setup=test.setup,
+                subtype1='-',
+                test_case_id='path.to.test_module.NameTestCase.test_name',
+                testtype='functional'
+            )
+
+
+def test_add_test_record():
+    test_run = mock.MagicMock()
+    obj_cache = {
+        'test_run': test_run,
+        'user': 'testuser',
+    }
+    with mock.patch.dict('betelgeuse.OBJ_CACHE', obj_cache):
+        with mock.patch.multiple(
+                'betelgeuse',
+                TestCase=mock.DEFAULT,
+                datetime=mock.DEFAULT,
+        ) as patches:
+            test_case = mock.MagicMock()
+            patches['TestCase'].query.return_value = [test_case]
+            add_test_record({
+                'classname': 'NameTestCase',
+                'message': u'Test failed because it not worked',
+                'name': 'test_name',
+                'status': 'failure',
+                'time': '3.1415',
+            })
+            test_run.add_test_record_by_fields.assert_called_once_with(
+                duration=3.1415,
+                executed=patches['datetime'].datetime.now(),
+                executed_by='testuser',
+                test_case_id=test_case.work_item_id,
+                test_comment='Test failed because it not worked',
+                test_result='failed'
+            )
 
 
 def test_parse_junit():
@@ -41,6 +141,15 @@ def test_parse_junit():
 def test_invalid_test_run_chars_regex():
     invalid_test_run_id = '\\/.:*"<>|~!@#$?%^&\'*()+`,='
     assert re.sub(INVALID_TEST_RUN_CHARS_REGEX, '', invalid_test_run_id) == ''
+
+
+def test_job_param_type():
+    job_param = JobNumberParamType()
+    with mock.patch('betelgeuse.multiprocessing') as multiprocessing:
+        job_param.convert('auto', None, None)
+        multiprocessing.cpu_count.assert_called_once_with()
+    with pytest.raises(click.BadParameter):
+        job_param.convert('-1', None, None)
 
 
 def test_parse_requirement_name():
@@ -86,3 +195,120 @@ def test_parse_test_results():
     assert summary['failure'] == 1
     assert summary['skipped'] == 1
     assert summary['error'] == 1
+
+
+def test_test_case(cli_runner):
+    with cli_runner.isolated_filesystem():
+        with open('test_something.py', 'w') as handler:
+            handler.write(TEST_MODULE)
+        with mock.patch.multiple(
+                'betelgeuse',
+                TestCase=mock.DEFAULT,
+                multiprocessing=mock.DEFAULT,
+                testimony=mock.DEFAULT
+        ) as patches:
+            pool = mock.MagicMock()
+            patches['multiprocessing'].Pool.return_value = pool
+
+            result = cli_runner.invoke(
+                cli,
+                ['test-case', '--path', 'test_something.py', 'PROJECT']
+            )
+            assert result.exit_code == 0
+            patches['TestCase'].session.tx_begin.assert_called_once_with()
+            patches['TestCase'].session.tx_commit.assert_called_once_with()
+            pool.map.assert_called_once_with(
+                betelgeuse.add_test_case,
+                patches['testimony'].get_testcases().items()
+            )
+            pool.close.assert_called_once_with()
+            pool.join.assert_called_once_with()
+
+
+def test_test_results(cli_runner):
+    with cli_runner.isolated_filesystem():
+        with open('results.xml', 'w') as handler:
+            handler.write(JUNIT_XML)
+        result = cli_runner.invoke(
+            cli, ['test-results', '--path', 'results.xml'])
+        assert result.exit_code == 0
+        assert 'Error: 1\n' in result.output
+        assert 'Failure: 1\n' in result.output
+        assert 'Passed: 1\n' in result.output
+        assert 'Skipped: 1\n' in result.output
+
+
+def test_test_results_default_path(cli_runner):
+    with cli_runner.isolated_filesystem():
+        with open('junit-results.xml', 'w') as handler:
+            handler.write(JUNIT_XML)
+        result = cli_runner.invoke(cli, ['test-results'])
+        assert result.exit_code == 0
+        assert 'Error: 1\n' in result.output
+        assert 'Failure: 1\n' in result.output
+        assert 'Passed: 1\n' in result.output
+        assert 'Skipped: 1\n' in result.output
+
+
+def test_test_run(cli_runner):
+    with cli_runner.isolated_filesystem():
+        with open('junit_report.xml', 'w') as handler:
+            handler.write(JUNIT_XML)
+        with mock.patch.multiple(
+                'betelgeuse',
+                TestRun=mock.DEFAULT,
+                multiprocessing=mock.DEFAULT,
+                testimony=mock.DEFAULT
+        ) as patches:
+            pool = mock.MagicMock()
+            patches['multiprocessing'].Pool.return_value = pool
+
+            result = cli_runner.invoke(
+                cli,
+                ['test-run', '--path', 'junit_report.xml', 'PROJECT']
+            )
+            assert result.exit_code == 0
+            patches['TestRun'].session.tx_begin.assert_called_once_with()
+            patches['TestRun'].session.tx_commit.assert_called_once_with()
+            pool.map.assert_called_once_with(
+                betelgeuse.add_test_record,
+                parse_junit('junit_report.xml')
+            )
+            pool.close.assert_called_once_with()
+            pool.join.assert_called_once_with()
+
+
+def test_test_run_new_test_run(cli_runner):
+    with cli_runner.isolated_filesystem():
+        with open('junit_report.xml', 'w') as handler:
+            handler.write(JUNIT_XML)
+        with mock.patch.multiple(
+                'betelgeuse',
+                TestRun=mock.DEFAULT,
+                multiprocessing=mock.DEFAULT,
+                testimony=mock.DEFAULT
+        ) as patches:
+            pool = mock.MagicMock()
+            patches['multiprocessing'].Pool.return_value = pool
+            patches['TestRun'].side_effect = PylarionLibException
+
+            result = cli_runner.invoke(
+                cli,
+                [
+                    'test-run',
+                    '--path', 'junit_report.xml',
+                    '--test-run-id', 'testrunid',
+                    'PROJECT'
+                ]
+            )
+            assert result.exit_code == 0
+            patches['TestRun'].create.assert_called_once_with(
+                'PROJECT', 'testrunid', 'Empty')
+            patches['TestRun'].session.tx_begin.assert_called_once_with()
+            patches['TestRun'].session.tx_commit.assert_called_once_with()
+            pool.map.assert_called_once_with(
+                betelgeuse.add_test_record,
+                parse_junit('junit_report.xml')
+            )
+            pool.close.assert_called_once_with()
+            pool.join.assert_called_once_with()
