@@ -209,12 +209,18 @@ def add_test_case(args):
         # Is the test automated? Acceptable values are:
         # automated, manualonly, and notautomated
         auto_status = 'automated' if test.automated else 'notautomated'
+        caseposneg = 'negative' if 'negative' in test.name else 'positive'
 
         results = []
         if not collect_only:
             results = TestCase.query(
                 test_case_id,
-                fields=['caseautomation', 'description', 'work_item_id']
+                fields=[
+                    'caseautomation',
+                    'caseposneg',
+                    'description',
+                    'work_item_id'
+                ]
             )
         if len(results) == 0:
             click.echo(
@@ -230,7 +236,7 @@ def add_test_case(args):
                     casecomponent='-',
                     caseimportance='medium',
                     caselevel='component',
-                    caseposneg='positive',
+                    caseposneg=caseposneg,
                     subtype1='-',
                     test_case_id=test_case_id,
                     testtype='functional',
@@ -253,10 +259,12 @@ def add_test_case(args):
             test_case = results[0]
             if (not collect_only and
                 (test_case.description != test.docstring or
-                    test_case.caseautomation != auto_status)):
+                    test_case.caseautomation != auto_status or
+                    test_case.caseposneg != caseposneg)):
                 test_case.description = (
                     test.docstring if test.docstring else '')
                 test_case.caseautomation = auto_status
+                test_case.caseposneg = caseposneg
                 test_case.update()
 
 
