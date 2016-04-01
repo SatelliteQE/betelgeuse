@@ -210,6 +210,7 @@ def add_test_case(args):
         # automated, manualonly, and notautomated
         auto_status = 'automated' if test.automated else 'notautomated'
         caseposneg = 'negative' if 'negative' in test.name else 'positive'
+        testcase_setup = test.setup if test.setup else 'No setup defined'
 
         results = []
         if not collect_only:
@@ -240,6 +241,7 @@ def add_test_case(args):
                     subtype1='-',
                     test_case_id=test_case_id,
                     testtype='functional',
+                    setup=testcase_setup,
                 )
             click.echo(
                 'Linking test case {0} to verify requirement {1}.'
@@ -260,11 +262,13 @@ def add_test_case(args):
             if (not collect_only and
                 (test_case.description != test.docstring or
                     test_case.caseautomation != auto_status or
-                    test_case.caseposneg != caseposneg)):
+                    test_case.caseposneg != caseposneg or
+                    test_case.setup != testcase_setup)):
                 test_case.description = (
                     test.docstring if test.docstring else '')
                 test_case.caseautomation = auto_status
                 test_case.caseposneg = caseposneg
+                test_case.setup = testcase_setup
                 test_case.update()
 
 
