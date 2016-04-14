@@ -295,7 +295,7 @@ def add_test_record(result):
         'Adding test record for test case {0} with status {1}.'
         .format(work_item_id, status)
     )
-    message = result.get('message')
+    message = result.get('message', '')
     if message and type(message) == unicode:
         message = message.encode('ascii', 'xmlcharrefreplace')
     try:
@@ -310,6 +310,25 @@ def add_test_record(result):
     except PylarionLibException as err:
         click.echo('Skipping test case {0}.'.format(work_item_id))
         click.echo(err, err=True)
+    except:
+        click.echo(
+            'Error when adding test record for "{test_case_id}" with the '
+            'following information:\n'
+            'duration="{duration}"'
+            'executed="{executed}"\n'
+            'executed_by="{executed_by}"\n'
+            'test_result="{test_result}"\n'
+            'test_comment="{test_comment}"\n'
+            .format(
+                test_case_id=work_item_id,
+                test_result=status,
+                test_comment=message,
+                executed_by=user,
+                executed=datetime.datetime.now(),
+                duration=float(result.get('time', '0'))
+            )
+        )
+        raise
 
 
 @click.group()
