@@ -20,11 +20,17 @@ import re
 import ssl
 import testimony
 import time
+import sys
 
 from collections import Counter
-from pylarion.exceptions import PylarionLibException
-from pylarion.work_item import TestCase, Requirement
-from pylarion.test_run import TestRun
+try:
+    from pylarion.exceptions import PylarionLibException
+    from pylarion.work_item import TestCase, Requirement
+    from pylarion.test_run import TestRun
+except ImportError as exception:
+    sys.exit("Failed to import Pylarion. "
+             "Please install Pylarion library and try again")
+
 from xml.etree import ElementTree
 
 logging.captureWarnings(True)
