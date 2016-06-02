@@ -237,6 +237,8 @@ def add_test_case(args):
         # automated, manualonly, and notautomated
         auto_status = 'automated' if test.automated else 'notautomated'
         caseposneg = 'negative' if 'negative' in test.name else 'positive'
+        casecomponent = test.unexpected_tags.get('casecomponent', '-')
+        caseimportance = test.unexpected_tags.get('caseimportance', 'medium')
         setup = test.setup if test.setup else None
 
         results = []
@@ -261,8 +263,8 @@ def add_test_case(args):
                     test.name,
                     test.docstring if test.docstring else '',
                     caseautomation=auto_status,
-                    casecomponent='-',
-                    caseimportance='medium',
+                    casecomponent=casecomponent,
+                    caseimportance=caseimportance,
                     caselevel='component',
                     caseposneg=caseposneg,
                     subtype1='-',
@@ -290,12 +292,16 @@ def add_test_case(args):
                 (test_case.description != test.docstring or
                     test_case.caseautomation != auto_status or
                     test_case.caseposneg != caseposneg or
-                    test_case.setup != setup)):
+                    test_case.setup != setup or
+                    test_case.casecomponent != casecomponent or
+                    test_case.caseimportance != caseimportance)):
                 test_case.description = (
                     test.docstring if test.docstring else '')
                 test_case.caseautomation = auto_status
                 test_case.caseposneg = caseposneg
                 test_case.setup = setup
+                test_case.casecomponent = casecomponent
+                test_case.caseimportance = caseimportance
                 test_case.update()
 
 
