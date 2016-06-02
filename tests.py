@@ -64,6 +64,8 @@ def test_add_test_case_create():
             test.name = 'test_name'
             test.docstring = 'Test the name feature'
             test.parent_class = 'NameTestCase'
+            test.case_component = '-'
+            test.case_importance = 'medium'
             add_test_case(('path/to/test_module.py', [test]))
             patches['Requirement'].query.assert_called_once_with(
                 'Module', fields=['title', 'work_item_id'])
@@ -83,7 +85,7 @@ def test_add_test_case_create():
                 'test_name',
                 '<p>Test the name feature</p>\n',
                 caseautomation='automated',
-                casecomponent='-',
+                casecomponent=test.unexpected_tags.get('casecomponent', '-'),
                 caseimportance='medium',
                 caselevel='component',
                 caseposneg='positive',
