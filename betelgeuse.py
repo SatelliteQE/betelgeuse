@@ -207,6 +207,8 @@ def fetch_requirement(query, project, collect_only=False):
                 '',
                 reqtype='functional'
             )
+            requirement.status = 'approved'
+            requirement.update()
     if query not in OBJ_CACHE['requirements'].keys():
         OBJ_CACHE['requirements'][query] = requirement
     return requirement
@@ -265,6 +267,7 @@ def add_test_case(args):
             'caseimportance', 'medium').lower()
         caselevel = test.unexpected_tags.get('caselevel', 'component').lower()
         setup = test.setup if test.setup else None
+        status = test.unexpected_tags.get('status', 'approved').lower()
         testtype = test.unexpected_tags.get(
             'testtype',
             'functional'
@@ -305,6 +308,8 @@ def add_test_case(args):
                     setup=setup,
                     upstream=upstream,
                 )
+                test_case.status = status
+                test_case.update()
             click.echo(
                 'Linking test case {0} to verify requirement {1}.'
                 .format(test.name, requirement_name)
@@ -334,6 +339,7 @@ def add_test_case(args):
                     test_case.subtype1 != subtype1,
                     test_case.testtype != testtype,
                     test_case.upstream != upstream,
+                    test_case.status != status,
             )):
                 test_case.description = (
                     test.docstring if test.docstring else '')
@@ -343,6 +349,7 @@ def add_test_case(args):
                 test_case.caselevel = caselevel
                 test_case.caseposneg = caseposneg
                 test_case.setup = setup
+                test_case.status = status
                 test_case.subtype1 = subtype1
                 test_case.testtype = testtype
                 test_case.upstream = upstream
@@ -444,14 +451,10 @@ def test_case(context, path, collect_only, project):
     OBJ_CACHE['collect_only'] = collect_only
     OBJ_CACHE['project'] = project
 
-    if not collect_only:
-        TestCase.session.tx_begin()
     pool = multiprocessing.Pool(context.obj['jobs'])
     pool.map(add_test_case, testcases.items())
     pool.close()
     pool.join()
-    if not collect_only:
-        TestCase.session.tx_commit()
 
 
 @cli.command('test-results')

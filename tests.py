@@ -224,8 +224,6 @@ def test_test_case(cli_runner):
                 ['test-case', '--path', 'test_something.py', 'PROJECT']
             )
             assert result.exit_code == 0
-            patches['TestCase'].session.tx_begin.assert_called_once_with()
-            patches['TestCase'].session.tx_commit.assert_called_once_with()
             pool.map.assert_called_once_with(
                 betelgeuse.add_test_case,
                 patches['testimony'].get_testcases().items()
