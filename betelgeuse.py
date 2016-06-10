@@ -44,7 +44,7 @@ POLARION_STATUS = {
 JUNIT_TEST_STATUS = ['error', 'failure', 'skipped']
 
 # Cache for shared objects
-OBJ_CACHE = {}
+OBJ_CACHE = {'requirements': {}}
 
 
 class JobNumberParamType(click.ParamType):
@@ -175,6 +175,43 @@ def parse_test_results(test_results):
     return Counter([test['status'] for test in test_results])
 
 
+def fetch_requirement(query, project, collect_only=False):
+    """Fetch or create a requirement.
+
+    Return the fetched or created requirement object.
+    """
+    click.echo(
+        'Fetching requirement {0}.'.format(query))
+    if query in OBJ_CACHE['requirements'].keys():
+        return OBJ_CACHE['requirements'][query]
+    requirement = None
+    if not collect_only:
+        results = Requirement.query(
+            query,
+            fields=['title', 'work_item_id']
+        )
+        if len(results) > 0:
+            # As currently is not possible to get a single
+            # match for the title, make sure to not use a
+            # not intended Requirement.
+            for result in results:
+                if result.title == query or result.work_item_id == query:
+                    requirement = result
+    if requirement is None:
+        click.echo(
+            'Creating requirement {0}.'.format(query))
+        if not collect_only:
+            requirement = Requirement.create(
+                project,
+                query,
+                '',
+                reqtype='functional'
+            )
+    if query not in OBJ_CACHE['requirements'].keys():
+        OBJ_CACHE['requirements'][query] = requirement
+    return requirement
+
+
 def add_test_case(args):
     """Task that creates or updates Test Cases and manages their Requirement.
 
@@ -188,45 +225,21 @@ def add_test_case(args):
     collect_only = OBJ_CACHE['collect_only']
     project = OBJ_CACHE['project']
 
-    # Fetch or create a Requirement
-    requirement = None
-    requirement_name = parse_requirement_name(path)
-    click.echo(
-        'Fetching requirement {0}.'.format(requirement_name))
-    if not collect_only:
-        results = Requirement.query(
-            '{0}'.format(requirement_name),
-            fields=['title', 'work_item_id']
-        )
-        if len(results) > 0:
-            # As currently is not possible to get a single
-            # match for the title, make sure to not use a
-            # not intended Requirement.
-            for result in results:
-                if result.title == requirement_name:
-                    requirement = result
-    if requirement is None:
-        click.echo(
-            'Creating requirement {0}.'.format(requirement_name))
-        if not collect_only:
-            requirement = Requirement.create(
-                project,
-                requirement_name,
-                '',
-                reqtype='functional'
-            )
-
     for test in tests:
-        # Generate the test_case_id. It could be either path.test_name or
-        # path.ClassName.test_name if the test methods is defined within a
-        # class.
-        test_case_id_parts = [
-            path.replace('/', '.').replace('.py', ''),
-            test.name
-        ]
-        if test.parent_class is not None:
-            test_case_id_parts.insert(-1, test.parent_class)
-        test_case_id = '.'.join(test_case_id_parts)
+        # Fetch the test case id if the @Id tag is present otherwise generate a
+        # test_case_id based on the test Python import path
+        test_case_id = test.unexpected_tags.get('id')
+        if not test_case_id:
+            # Generate the test_case_id. It could be either path.test_name or
+            # path.ClassName.test_name if the test methods is defined within a
+            # class.
+            test_case_id_parts = [
+                path.replace('/', '.').replace('.py', ''),
+                test.name
+            ]
+            if test.parent_class is not None:
+                test_case_id_parts.insert(-1, test.parent_class)
+            test_case_id = '.'.join(test_case_id_parts)
 
         if test.docstring:
             if not type(test.docstring) == unicode:
@@ -235,11 +248,28 @@ def add_test_case(args):
 
         # Is the test automated? Acceptable values are:
         # automated, manualonly, and notautomated
-        auto_status = 'automated' if test.automated else 'notautomated'
-        caseposneg = 'negative' if 'negative' in test.name else 'positive'
-        casecomponent = test.unexpected_tags.get('casecomponent', '-')
-        caseimportance = test.unexpected_tags.get('caseimportance', 'medium')
+        auto_status = test.unexpected_tags.get(
+            'caseautomation',
+            'automated' if test.automated else 'notautomated'
+        ).lower()
+        caseposneg = test.unexpected_tags.get(
+            'caseposneg',
+            'negative' if 'negative' in test.name else 'positive'
+        ).lower()
+        subtype1 = test.unexpected_tags.get(
+            'subtype1',
+            '-'
+        ).lower()
+        casecomponent = test.unexpected_tags.get('casecomponent', '-').lower()
+        caseimportance = test.unexpected_tags.get(
+            'caseimportance', 'medium').lower()
+        caselevel = test.unexpected_tags.get('caselevel', 'component').lower()
         setup = test.setup if test.setup else None
+        testtype = test.unexpected_tags.get(
+            'testtype',
+            'functional'
+        ).lower()
+        upstream = test.unexpected_tags.get('upstream', 'no').lower()
 
         results = []
         if not collect_only:
@@ -252,6 +282,8 @@ def add_test_case(args):
                     'work_item_id'
                 ]
             )
+        requirement_name = test.unexpected_tags.get(
+            'requirement', parse_requirement_name(path))
         if len(results) == 0:
             click.echo(
                 'Creating test case {0} for requirement {1}.'
@@ -265,18 +297,21 @@ def add_test_case(args):
                     caseautomation=auto_status,
                     casecomponent=casecomponent,
                     caseimportance=caseimportance,
-                    caselevel='component',
+                    caselevel=caselevel,
                     caseposneg=caseposneg,
-                    subtype1='-',
+                    subtype1=subtype1,
                     test_case_id=test_case_id,
-                    testtype='functional',
+                    testtype=testtype,
                     setup=setup,
+                    upstream=upstream,
                 )
             click.echo(
                 'Linking test case {0} to verify requirement {1}.'
                 .format(test.name, requirement_name)
             )
             if not collect_only:
+                requirement = fetch_requirement(
+                    requirement_name, project, collect_only)
                 test_case.add_linked_item(
                     requirement.work_item_id, 'verifies')
         else:
@@ -288,20 +323,29 @@ def add_test_case(args):
             # returned.
             assert len(results) == 1
             test_case = results[0]
-            if (not collect_only and
-                (test_case.description != test.docstring or
-                    test_case.caseautomation != auto_status or
-                    test_case.caseposneg != caseposneg or
-                    test_case.setup != setup or
-                    test_case.casecomponent != casecomponent or
-                    test_case.caseimportance != caseimportance)):
+            if not collect_only and any((
+                    test_case.caseautomation != auto_status,
+                    test_case.casecomponent != casecomponent,
+                    test_case.caseimportance != caseimportance,
+                    test_case.caselevel != caselevel,
+                    test_case.caseposneg != caseposneg,
+                    test_case.description != test.docstring,
+                    test_case.setup != setup,
+                    test_case.subtype1 != subtype1,
+                    test_case.testtype != testtype,
+                    test_case.upstream != upstream,
+            )):
                 test_case.description = (
                     test.docstring if test.docstring else '')
                 test_case.caseautomation = auto_status
-                test_case.caseposneg = caseposneg
-                test_case.setup = setup
                 test_case.casecomponent = casecomponent
                 test_case.caseimportance = caseimportance
+                test_case.caselevel = caselevel
+                test_case.caseposneg = caseposneg
+                test_case.setup = setup
+                test_case.subtype1 = subtype1
+                test_case.testtype = testtype
+                test_case.upstream = upstream
                 test_case.update()
 
 

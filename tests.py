@@ -91,7 +91,8 @@ def test_add_test_case_create():
                 setup=test.setup,
                 subtype1='-',
                 test_case_id='path.to.test_module.NameTestCase.test_name',
-                testtype='functional'
+                testtype='functional',
+                upstream='no',
             )
 
 
