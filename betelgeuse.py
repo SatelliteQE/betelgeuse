@@ -255,7 +255,6 @@ def add_test_case(args):
         if test.docstring:
             if not type(test.docstring) == unicode:
                 test.docstring = test.docstring.decode('utf8')
-            test.docstring = RST_PARSER.parse(test.docstring)
 
         # Is the test automated? Acceptable values are:
         # automated, manualonly, and notautomated
@@ -275,6 +274,9 @@ def add_test_case(args):
         caseimportance = test.tokens.get(
             'caseimportance', 'medium').lower()
         caselevel = test.tokens.get('caselevel', 'component').lower()
+        description = test.tokens.get(
+            'description', test.docstring if test.docstring else '')
+        description = RST_PARSER.parse(description)
         setup = test.tokens.get('setup')
         status = test.tokens.get('status', 'approved').lower()
         testtype = test.tokens.get(
@@ -305,7 +307,7 @@ def add_test_case(args):
                 test_case = TestCase.create(
                     project,
                     test.name,
-                    test.docstring if test.docstring else '',
+                    description,
                     caseautomation=auto_status,
                     casecomponent=casecomponent,
                     caseimportance=caseimportance,
@@ -343,15 +345,14 @@ def add_test_case(args):
                     test_case.caseimportance != caseimportance,
                     test_case.caselevel != caselevel,
                     test_case.caseposneg != caseposneg,
-                    test_case.description != test.docstring,
+                    test_case.description != description,
                     test_case.setup != setup,
                     test_case.subtype1 != subtype1,
                     test_case.testtype != testtype,
                     test_case.upstream != upstream,
                     test_case.status != status,
             )):
-                test_case.description = (
-                    test.docstring if test.docstring else '')
+                test_case.description = description
                 test_case.caseautomation = auto_status
                 test_case.casecomponent = casecomponent
                 test_case.caseimportance = caseimportance
@@ -452,6 +453,7 @@ def cli(context, jobs):
         'caseimportance',
         'caselevel',
         'caseposneg',
+        'description',
         'id',
         'requirement',
         'setup',
