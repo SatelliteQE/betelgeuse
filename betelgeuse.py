@@ -248,7 +248,12 @@ def add_test_case(args):
         if test.docstring:
             if not type(test.docstring) == unicode:
                 test.docstring = test.docstring.decode('utf8')
-            test.docstring = RST_PARSER.parse(test.docstring)
+            test.docstring = RST_PARSER.parse(str(test.docstring))
+
+        test_desc = test.tokens.get(
+            'description',
+            test.docstring if test.docstring else ''
+        )
 
         # Is the test automated? Acceptable values are:
         # automated, manualonly, and notautomated
@@ -298,7 +303,7 @@ def add_test_case(args):
                 test_case = TestCase.create(
                     project,
                     test.name,
-                    test.docstring if test.docstring else '',
+                    test_desc,
                     caseautomation=auto_status,
                     casecomponent=casecomponent,
                     caseimportance=caseimportance,
@@ -336,15 +341,14 @@ def add_test_case(args):
                     test_case.caseimportance != caseimportance,
                     test_case.caselevel != caselevel,
                     test_case.caseposneg != caseposneg,
-                    test_case.description != test.docstring,
+                    test_case.description != test_desc,
                     test_case.setup != setup,
                     test_case.subtype1 != subtype1,
                     test_case.testtype != testtype,
                     test_case.upstream != upstream,
                     test_case.status != status,
             )):
-                test_case.description = (
-                    test.docstring if test.docstring else '')
+                test_case.description = test_desc
                 test_case.caseautomation = auto_status
                 test_case.casecomponent = casecomponent
                 test_case.caseimportance = caseimportance
@@ -461,6 +465,7 @@ def test_case(context, path, collect_only, project):
         'subtype1',
         'testtype',
         'upstream',
+        'description',
     ]
     testimony.SETTINGS['minimum_tokens'] = ['id']
     testcases = testimony.get_testcases([path])
