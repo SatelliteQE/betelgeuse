@@ -1,8 +1,19 @@
+all: test-coverage lint package
+
 init:
 	pip install -r requirements.txt
 
-coverage:
-	py.test --verbose --cov-report term --cov=betelgeuse tests.py
+init-dev:
+	pip install -r requirements-dev.txt
+
+lint:
+	flake8 betelgeuse.py
+
+package:
+	python setup.py --quiet sdist bdist_wheel
+
+package-clean:
+	rm -rf build dist Betelgeuse.egg-info
 
 publish:
 	python setup.py register
@@ -16,3 +27,8 @@ test-publish:
 
 test:
 	py.test tests.py
+
+test-coverage:
+	py.test --verbose --cov-report term --cov=betelgeuse tests.py
+
+.PHONY: all init init-dev lint publish test-publish test test-coverage
