@@ -64,7 +64,7 @@ def test_add_test_case_create():
             test.name = 'test_name'
             test.docstring = 'Test the name feature'
             test.parent_class = 'NameTestCase'
-            test.unexpected_tags = {}
+            test.tokens = {}
             add_test_case(('path/to/test_module.py', [test]))
             patches['Requirement'].query.assert_called_once_with(
                 'Module', fields=['title', 'work_item_id'])
@@ -88,7 +88,7 @@ def test_add_test_case_create():
                 caseimportance='medium',
                 caselevel='component',
                 caseposneg='positive',
-                setup=test.setup,
+                setup=None,
                 subtype1='-',
                 test_case_id='path.to.test_module.NameTestCase.test_name',
                 testtype='functional',
