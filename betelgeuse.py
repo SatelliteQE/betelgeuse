@@ -53,9 +53,11 @@ class JobNumberParamType(click.ParamType):
     This param type accepts ``auto`` or any positive integer (>0) as valid
     values.
     """
+
     name = 'job number'
 
     def convert(self, value, param, context):
+        """Convert string ``auto`` into the CPU count."""
         if value.lower() == 'auto':
             return multiprocessing.cpu_count()
         value = int(value)
@@ -164,7 +166,7 @@ def parse_junit(path):
 
 
 def parse_test_results(test_results):
-    """Returns the summary of test results by their status.
+    """Return the summary of test results by their status.
 
     :param test_results: A list of dicts with information about
         test results, such as those reported in a jUnit file.
@@ -479,10 +481,10 @@ def test_case(context, path, collect_only, project):
     type=click.Path(exists=True, dir_okay=False),
 )
 def test_results(path):
-    """Shows a summary for test cases contained in a jUnit XML file."""
+    """Show a summary for test cases contained in a jUnit XML file."""
     test_summary = parse_test_results(parse_junit(path))
     summary = '\n'.join(
-        ["{0}: {1}".format(*status) for status in test_summary.items()]
+        ['{0}: {1}'.format(*status) for status in test_summary.items()]
     ).title()
     click.echo(summary)
 
