@@ -230,7 +230,7 @@ def add_test_case(args):
     for test in tests:
         # Fetch the test case id if the @Id tag is present otherwise generate a
         # test_case_id based on the test Python import path
-        test_case_id = test.unexpected_tags.get('id')
+        test_case_id = test.tokens.get('id')
         if not test_case_id:
             # Generate the test_case_id. It could be either path.test_name or
             # path.ClassName.test_name if the test methods is defined within a
@@ -250,29 +250,29 @@ def add_test_case(args):
 
         # Is the test automated? Acceptable values are:
         # automated, manualonly, and notautomated
-        auto_status = test.unexpected_tags.get(
+        auto_status = test.tokens.get(
             'caseautomation',
-            'automated' if test.automated else 'notautomated'
+            'notautomated' if test.tokens.get('status') else 'automated'
         ).lower()
-        caseposneg = test.unexpected_tags.get(
+        caseposneg = test.tokens.get(
             'caseposneg',
             'negative' if 'negative' in test.name else 'positive'
         ).lower()
-        subtype1 = test.unexpected_tags.get(
+        subtype1 = test.tokens.get(
             'subtype1',
             '-'
         ).lower()
-        casecomponent = test.unexpected_tags.get('casecomponent', '-').lower()
-        caseimportance = test.unexpected_tags.get(
+        casecomponent = test.tokens.get('casecomponent', '-').lower()
+        caseimportance = test.tokens.get(
             'caseimportance', 'medium').lower()
-        caselevel = test.unexpected_tags.get('caselevel', 'component').lower()
-        setup = test.setup if test.setup else None
-        status = test.unexpected_tags.get('status', 'approved').lower()
-        testtype = test.unexpected_tags.get(
+        caselevel = test.tokens.get('caselevel', 'component').lower()
+        setup = test.tokens.get('setup')
+        status = test.tokens.get('status', 'approved').lower()
+        testtype = test.tokens.get(
             'testtype',
             'functional'
         ).lower()
-        upstream = test.unexpected_tags.get('upstream', 'no').lower()
+        upstream = test.tokens.get('upstream', 'no').lower()
 
         results = []
         if not collect_only:
@@ -285,7 +285,7 @@ def add_test_case(args):
                     'work_item_id'
                 ]
             )
-        requirement_name = test.unexpected_tags.get(
+        requirement_name = test.tokens.get(
             'requirement', parse_requirement_name(path))
         if len(results) == 0:
             click.echo(
@@ -447,6 +447,20 @@ def cli(context, jobs):
 @click.pass_context
 def test_case(context, path, collect_only, project):
     """Sync test cases with Polarion."""
+    testimony.SETTINGS['tokens'] = [
+        'caseautomation',
+        'casecomponent',
+        'caseimportance',
+        'caselevel',
+        'caseposneg',
+        'id',
+        'requirement',
+        'setup',
+        'subtype1',
+        'testtype',
+        'upstream',
+    ]
+    testimony.SETTINGS['minimum_tokens'] = ['id']
     testcases = testimony.get_testcases([path])
     OBJ_CACHE['collect_only'] = collect_only
     OBJ_CACHE['project'] = project
