@@ -9,23 +9,25 @@ Polarion. Possible interactions:
   and jUnit XML file.
 * Creation of Test Runs based on a jUnit XML file.
 """
-import click
 import datetime
 import docutils
 import docutils.core
 import docutils.io
+import itertools
 import logging
 import multiprocessing
 import re
 import ssl
-import testimony
 import time
-
 from collections import Counter
+from xml.etree import ElementTree
+
+import click
+import testimony
 from pylarion.exceptions import PylarionLibException
 from pylarion.work_item import TestCase, Requirement
 from pylarion.test_run import TestRun
-from xml.etree import ElementTree
+
 
 logging.captureWarnings(True)
 
@@ -97,6 +99,23 @@ class RstParser():
 
 
 RST_PARSER = RstParser()
+
+
+def generate_test_id(test):
+    """Generate the test_case_id as the Python import path.
+
+    It could be either ``module.test_name`` or ``module.ClassName.test_name``
+    if the test methods is defined within a class.
+
+    :param test: a Testimony TestFunction instance.
+    """
+    test_case_id_parts = [
+        test.testmodule.replace('/', '.').replace('.py', ''),
+        test.name
+    ]
+    if test.parent_class is not None:
+        test_case_id_parts.insert(-1, test.parent_class)
+    return '.'.join(test_case_id_parts)
 
 
 def parse_requirement_name(path):
@@ -232,19 +251,7 @@ def add_test_case(args):
     for test in tests:
         # Fetch the test case id if the @Id tag is present otherwise generate a
         # test_case_id based on the test Python import path
-        test_case_id = test.tokens.get('id')
-        if not test_case_id:
-            # Generate the test_case_id. It could be either path.test_name or
-            # path.ClassName.test_name if the test methods is defined within a
-            # class.
-            test_case_id_parts = [
-                path.replace('/', '.').replace('.py', ''),
-                test.name
-            ]
-            if test.parent_class is not None:
-                test_case_id_parts.insert(-1, test.parent_class)
-            test_case_id = '.'.join(test_case_id_parts)
-
+        test_case_id = test.tokens.get('id', generate_test_id(test))
         if test.docstring:
             if not type(test.docstring) == unicode:
                 test.docstring = test.docstring.decode('utf8')
@@ -367,12 +374,20 @@ def add_test_record(result):
     """
     test_run = OBJ_CACHE['test_run']
     user = OBJ_CACHE['user']
-    test_case_id = '{0}.{1}'.format(result['classname'], result['name'])
+    testcases = OBJ_CACHE['testcases']
+    junit_test_case_id = '{0}.{1}'.format(result['classname'], result['name'])
+    test_case_id = testcases.get(junit_test_case_id)
+    if not test_case_id:
+        click.echo(
+            'Missing ID information for test {0}, using junit test case id...'
+            .format(junit_test_case_id)
+        )
+        test_case_id = junit_test_case_id
     test_case = TestCase.query(test_case_id)
     if len(test_case) == 0:
         click.echo(
-            'Was not able to find test case with id {0}, skipping...'
-            .format(test_case_id)
+            'Was not able to find test case {0} with id {1}, skipping...'
+            .format(junit_test_case_id, test_case_id)
         )
         return
     status = POLARION_STATUS[result['status']]
@@ -430,6 +445,21 @@ def cli(context, jobs):
     """Betelgeuse CLI command group."""
     context.obj = {}
     context.obj['jobs'] = jobs
+    # Configure Testimony tokens
+    testimony.SETTINGS['tokens'] = [
+        'caseautomation',
+        'casecomponent',
+        'caseimportance',
+        'caselevel',
+        'caseposneg',
+        'id',
+        'requirement',
+        'setup',
+        'subtype1',
+        'testtype',
+        'upstream',
+    ]
+    testimony.SETTINGS['minimum_tokens'] = ['id']
 
 
 @cli.command('test-case')
@@ -449,20 +479,6 @@ def cli(context, jobs):
 @click.pass_context
 def test_case(context, path, collect_only, project):
     """Sync test cases with Polarion."""
-    testimony.SETTINGS['tokens'] = [
-        'caseautomation',
-        'casecomponent',
-        'caseimportance',
-        'caselevel',
-        'caseposneg',
-        'id',
-        'requirement',
-        'setup',
-        'subtype1',
-        'testtype',
-        'upstream',
-    ]
-    testimony.SETTINGS['minimum_tokens'] = ['id']
     testcases = testimony.get_testcases([path])
     OBJ_CACHE['collect_only'] = collect_only
     OBJ_CACHE['project'] = project
@@ -497,6 +513,11 @@ def test_results(path):
     type=click.Path(exists=True, dir_okay=False),
 )
 @click.option(
+    '--source-code-path',
+    help='Path to the source code for the jUnit results.',
+    type=click.Path(exists=True),
+)
+@click.option(
     '--test-run-id',
     default='test-run-{0}'.format(time.time()),
     help='Test Run ID to be created/updated.',
@@ -513,9 +534,16 @@ def test_results(path):
 )
 @click.argument('project')
 @click.pass_context
-def test_run(context, path, test_run_id, test_template_id, user, project):
+def test_run(context, path, source_code_path, test_run_id, test_template_id,
+             user, project):
     """Execute a test run based on jUnit XML file."""
     test_run_id = re.sub(INVALID_TEST_RUN_CHARS_REGEX, '', test_run_id)
+    testcases = {
+        generate_test_id(test): test.tokens.get('id')
+        for test in itertools.chain(
+                *testimony.get_testcases([source_code_path]).values()
+        )
+    }
     results = parse_junit(path)
     try:
         test_run = TestRun(test_run_id, project_id=project)
@@ -527,6 +555,7 @@ def test_run(context, path, test_run_id, test_template_id, user, project):
 
     OBJ_CACHE['test_run'] = test_run
     OBJ_CACHE['user'] = user
+    OBJ_CACHE['testcases'] = testcases
 
     TestRun.session.tx_begin()
     pool = multiprocessing.Pool(context.obj['jobs'])

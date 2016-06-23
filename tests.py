@@ -64,6 +64,7 @@ def test_add_test_case_create():
             test.name = 'test_name'
             test.docstring = 'Test the name feature'
             test.parent_class = 'NameTestCase'
+            test.testmodule = 'path/to/test_module.py'
             test.tokens = {}
             add_test_case(('path/to/test_module.py', [test]))
             patches['Requirement'].query.assert_called_once_with(
@@ -101,17 +102,29 @@ def test_add_test_record():
     obj_cache = {
         'test_run': test_run,
         'user': 'testuser',
+        'testcases': {
+            'module.NameTestCase.test_name':
+            'caffa7b0-fb9e-430b-903f-3f37fa28e0da',
+        },
     }
     with mock.patch.dict('betelgeuse.OBJ_CACHE', obj_cache):
         with mock.patch.multiple(
                 'betelgeuse',
                 TestCase=mock.DEFAULT,
                 datetime=mock.DEFAULT,
+                testimony=mock.DEFAULT,
         ) as patches:
             test_case = mock.MagicMock()
             patches['TestCase'].query.return_value = [test_case]
+            testimony_test_function = mock.MagicMock()
+            testimony_test_function.testmodule = 'module.py'
+            testimony_test_function.parent_class = 'NameTestCase'
+            testimony_test_function.name = 'test_name'
+            patches['testimony'].get_testcases.return_value = {
+                'module.py': [testimony_test_function],
+            }
             add_test_record({
-                'classname': 'NameTestCase',
+                'classname': 'module.NameTestCase',
                 'message': u'Test failed because it not worked',
                 'name': 'test_name',
                 'status': 'failure',
