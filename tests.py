@@ -62,9 +62,9 @@ def test_add_test_case_create():
             patches['Requirement'].return_value = []
             test = mock.MagicMock()
             test.name = 'test_name'
-            test.docstring = 'Test the name feature'
-            test.parent_class = 'NameTestCase'
             test.tokens = {}
+            test.tokens['description'] = 'This is sample description'
+            test.parent_class = 'NameTestCase'
             add_test_case(('path/to/test_module.py', [test]))
             patches['Requirement'].query.assert_called_once_with(
                 'Module', fields=['title', 'work_item_id'])
@@ -82,7 +82,7 @@ def test_add_test_case_create():
             patches['TestCase'].create.assert_called_once_with(
                 'PROJECT',
                 'test_name',
-                '<p>Test the name feature</p>\n',
+                'This is sample description',
                 caseautomation='automated',
                 casecomponent='-',
                 caseimportance='medium',
