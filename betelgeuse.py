@@ -55,14 +55,11 @@ class JobNumberParamType(click.ParamType):
     def convert(self, value, param, context):
         if value.lower() == 'auto':
             return multiprocessing.cpu_count()
-        try:
-            value = int(value)
-            if value <= 0:
-                raise ValueError('{0} is not a positive integer'.format(value))
-            return value
-        except ValueError:
+        value = int(value)
+        if value <= 0:
             self.fail(
                 '{0} is not a positive integer'.format(value), param, context)
+        return value
 
 
 JOB_NUMBER = JobNumberParamType()
