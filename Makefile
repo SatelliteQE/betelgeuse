@@ -9,16 +9,14 @@ init-dev:
 lint:
 	flake8 betelgeuse.py
 
-package:
+package: package-clean
 	python setup.py --quiet sdist bdist_wheel
 
 package-clean:
 	rm -rf build dist Betelgeuse.egg-info
 
-publish:
-	python setup.py register
-	python setup.py sdist upload
-	python setup.py bdist_wheel upload
+publish: package
+	twine upload dist/*
 
 test-publish:
 	python setup.py register -r testpypi

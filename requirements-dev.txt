@@ -6,6 +6,9 @@ flake8-quotes
 # For `make package`
 wheel
 
+# For `make publish`
+twine
+
 # For `make test-coverage`
 coveralls
 
