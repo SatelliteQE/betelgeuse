@@ -11,6 +11,9 @@ Polarion. Possible interactions:
 """
 import click
 import datetime
+import docutils
+import docutils.core
+import docutils.io
 import logging
 import multiprocessing
 import re
@@ -63,6 +66,35 @@ class JobNumberParamType(click.ParamType):
 
 
 JOB_NUMBER = JobNumberParamType()
+
+
+class RstParser():
+    """A restructured text parser."""
+
+    def _get_publisher(self, source):
+        """Get docutils publisher."""
+        extra_params = {
+            'syntax_highlight': 'short',
+            'input_encoding': 'utf-8',
+            'embed_stylesheet': False,
+        }
+        pub = docutils.core.Publisher(
+            source_class=docutils.io.StringInput,
+            destination_class=docutils.io.StringOutput
+        )
+        pub.set_components('standalone', 'restructuredtext', 'html')
+        pub.process_programmatic_settings(None, extra_params, None)
+        pub.set_source(source=source)
+        pub.publish(enable_exit_status=True)
+        return pub
+
+    def parse(self, source):
+        """Parse restructured text."""
+        pub = self._get_publisher(source)
+        return pub.writer.parts.get('body')
+
+
+RST_PARSER = RstParser()
 
 
 def parse_requirement_name(path):
@@ -199,9 +231,7 @@ def add_test_case(args):
         if test.docstring:
             if not type(test.docstring) == unicode:
                 test.docstring = test.docstring.decode('utf8')
-            test.docstring = u'<pre>{0}</pre>'.format(test.docstring)
-            test.docstring = test.docstring.encode(
-                'ascii', 'xmlcharrefreplace')
+            test.docstring = RST_PARSER.parse(test.docstring)
 
         # Is the test automated? Acceptable values are:
         # automated, manualonly, and notautomated
