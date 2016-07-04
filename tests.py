@@ -13,6 +13,8 @@ from betelgeuse import (
     add_test_case,
     add_test_record,
     cli,
+    generate_test_steps,
+    map_steps,
     parse_junit,
     parse_requirement_name,
     parse_test_results,
@@ -41,6 +43,23 @@ def test_something():
 def test_something_else():
     """This test something else."""
 '''
+
+
+MULTIPLE_STEPS = """1. First step
+2. Second step
+3. Third step
+"""
+
+MULTIPLE_EXPECTEDRESULTS = """1. First step expected result.
+2. Second step expected result.
+3. Third step expected result.
+"""
+
+SINGLE_STEP = """Single step
+"""
+
+SINGLE_EXPECTEDRESULT = """Single step expected result.
+"""
 
 
 @pytest.fixture
@@ -141,6 +160,42 @@ def test_add_test_record():
             )
 
 
+def test_generate_test_steps():
+    steps = [('Step1', 'Result1'), ('Step2', 'Result2')]
+    with mock.patch.multiple(
+            'betelgeuse',
+            TestSteps=mock.DEFAULT,
+            TestStep=mock.DEFAULT,
+    ) as patches:
+        patches['TestStep'].side_effect = [mock.MagicMock(), mock.MagicMock()]
+        test_steps = generate_test_steps(steps)
+    assert test_steps.keys == ['step', 'expectedResult']
+    for step, expected in zip(test_steps.steps, steps):
+        assert step.values == list(expected)
+
+
+def test_map_single_step():
+    assert map_steps(SINGLE_STEP, SINGLE_EXPECTEDRESULT) == [
+        (u'<p>Single step</p>', '<p>Single step expected result.</p>')
+    ]
+
+
+def test_map_multiple_steps():
+    assert map_steps(MULTIPLE_STEPS, MULTIPLE_EXPECTEDRESULTS) == [
+        ('<p>First step</p>', '<p>First step expected result.</p>'),
+        ('<p>Second step</p>', '<p>Second step expected result.</p>'),
+        ('<p>Third step</p>', '<p>Third step expected result.</p>'),
+    ]
+
+
+def test_map_steps_parse_error():
+    multiple_steps = MULTIPLE_STEPS.replace('. ', '.', 1)
+    assert map_steps(multiple_steps, MULTIPLE_EXPECTEDRESULTS) == [(
+        RST_PARSER.parse(multiple_steps),
+        RST_PARSER.parse(MULTIPLE_EXPECTEDRESULTS),
+    )]
+
+
 def test_parse_junit():
     junit_xml = StringIO(JUNIT_XML)
     assert parse_junit(junit_xml) == [
@@ -159,6 +214,15 @@ def test_rst_parser():
     docstring = """Line one"""
     generated_html = "<p>Line one</p>\n"
     assert RST_PARSER.parse(docstring) == generated_html
+
+
+def test_get_multiple_steps_diff_items():
+    multiple_steps = '\n'.join(MULTIPLE_STEPS.splitlines()[:-1])
+    assert map_steps(
+        multiple_steps, MULTIPLE_EXPECTEDRESULTS) == [(
+            RST_PARSER.parse(multiple_steps),
+            RST_PARSER.parse(MULTIPLE_EXPECTEDRESULTS),
+        )]
 
 
 def test_invalid_test_run_chars_regex():

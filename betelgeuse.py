@@ -20,12 +20,19 @@ import re
 import ssl
 import time
 from collections import Counter
+from xml.dom import minidom
 from xml.etree import ElementTree
+from xml.parsers.expat import ExpatError
 
 import click
 import testimony
 from pylarion.exceptions import PylarionLibException
-from pylarion.work_item import TestCase, Requirement
+from pylarion.work_item import (
+    Requirement,
+    TestCase,
+    TestStep,
+    TestSteps,
+)
 from pylarion.test_run import TestRun
 
 
@@ -116,6 +123,93 @@ def generate_test_id(test):
     if test.parent_class is not None:
         test_case_id_parts.insert(-1, test.parent_class)
     return '.'.join(test_case_id_parts)
+
+
+def map_steps(steps, expectedresults):
+    """Map each step to its expected result.
+
+    For example a docstring like::
+
+        '''My test
+
+        @steps:
+
+        1. First step
+        2. Second step
+        3. Third step
+
+        @expectedresults:
+
+        1. First step expected result.
+        2. Second step expected result.
+        3. Third step expected result.
+        '''
+
+    Will produce a return like::
+
+        [
+            ('First step', 'First step expected result.'),
+            ('Second step', 'Second step expected result.'),
+            ('Third step', 'Third step expected result.'),
+        ]
+
+    :param steps: unparsed string expected to contain either a list of steps or
+        a single paragraph.
+    :param expectedresults: unparsed string expected to contain either a
+        list of expectedresults or a single paragraph.
+    """
+    steps = RST_PARSER.parse(steps)
+    expectedresults = RST_PARSER.parse(expectedresults)
+    try:
+        if not type(steps) == str:
+            steps = steps.encode('utf-8')
+        parsed_steps = minidom.parseString(steps)
+        if not type(expectedresults) == str:
+            expectedresults = expectedresults.encode('utf-8')
+        parsed_expectedresults = minidom.parseString(expectedresults)
+    except ExpatError:
+        return [(steps, expectedresults)]
+    if (parsed_steps.firstChild.tagName == 'p' and
+            parsed_expectedresults.firstChild.tagName == 'p'):
+        parsed_steps = [parsed_steps.firstChild.toxml().decode('utf-8')]
+        parsed_expectedresults = [
+            parsed_expectedresults.firstChild.toxml().decode('utf-8')]
+    elif (parsed_steps.firstChild.tagName == 'ol' and
+            parsed_expectedresults.firstChild.tagName == 'ol'):
+        parsed_steps = [
+            u'<p>{}</p>'.format(element.firstChild.toxml().decode('utf-8'))
+            for element in parsed_steps.getElementsByTagName('li')
+        ]
+        parsed_expectedresults = [
+            u'<p>{}</p>'.format(element.firstChild.toxml().decode('utf-8'))
+            for element in parsed_expectedresults.getElementsByTagName('li')
+        ]
+    else:
+        parsed_steps = [steps]
+        parsed_expectedresults = [expectedresults]
+    if len(parsed_steps) == len(parsed_expectedresults):
+        return zip(parsed_steps, parsed_expectedresults)
+    else:
+        return [(steps, expectedresults)]
+
+
+def generate_test_steps(steps_map):
+    """Generate a new TestSteps object.
+
+    Fill the steps information with the `steps_map` values.
+
+    :param steps_map: a list of tuples mapping to each step and
+        its expected result.
+    """
+    test_steps = TestSteps()
+    test_steps.keys = ['step', 'expectedResult']
+    steps = []
+    for item in steps_map:
+        test_step = TestStep()
+        test_step.values = list(item)
+        steps.append(test_step)
+    test_steps.steps = steps
+    return test_steps
 
 
 def parse_requirement_name(path):
@@ -284,6 +378,14 @@ def add_test_case(args):
             'functional'
         ).lower()
         upstream = test.tokens.get('upstream', 'no').lower()
+        steps = test.tokens.get('steps')
+        expectedresults = test.tokens.get('expectedresults')
+
+        if steps and expectedresults:
+            test_steps = generate_test_steps(
+                map_steps(steps, expectedresults))
+        else:
+            test_steps = None
 
         results = []
         if not collect_only:
@@ -313,13 +415,15 @@ def add_test_case(args):
                     caseimportance=caseimportance,
                     caselevel=caselevel,
                     caseposneg=caseposneg,
+                    setup=setup,
                     subtype1=subtype1,
                     test_case_id=test_case_id,
                     testtype=testtype,
-                    setup=setup,
                     upstream=upstream,
                 )
                 test_case.status = status
+                if test_steps:
+                    test_case.test_steps = test_steps
                 test_case.update()
             click.echo(
                 'Linking test case {0} to verify requirement {1}.'
@@ -347,10 +451,11 @@ def add_test_case(args):
                     test_case.caseposneg != caseposneg,
                     test_case.description != description,
                     test_case.setup != setup,
+                    test_case.status != status,
                     test_case.subtype1 != subtype1,
+                    test_case.test_steps != test_steps,
                     test_case.testtype != testtype,
                     test_case.upstream != upstream,
-                    test_case.status != status,
             )):
                 test_case.description = description
                 test_case.caseautomation = auto_status
@@ -363,6 +468,8 @@ def add_test_case(args):
                 test_case.subtype1 = subtype1
                 test_case.testtype = testtype
                 test_case.upstream = upstream
+                if test_steps:
+                    test_case.test_steps = test_steps
                 test_case.update()
 
 
@@ -453,10 +560,13 @@ def cli(context, jobs):
         'caseimportance',
         'caselevel',
         'caseposneg',
+        'assert',
         'description',
+        'expectedresults',
         'id',
         'requirement',
         'setup',
+        'steps',
         'subtype1',
         'testtype',
         'upstream',
