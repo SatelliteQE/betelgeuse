@@ -324,7 +324,8 @@ def test_test_run_new_test_run(cli_runner):
             )
             assert result.exit_code == 0
             patches['TestRun'].create.assert_called_once_with(
-                'PROJECT', 'testrunid', 'Empty', type='buildacceptance')
+                'PROJECT', 'testrunid', 'Empty', isautomated=True,
+                type='buildacceptance')
             patches['TestRun'].session.tx_begin.assert_called_once_with()
             patches['TestRun'].session.tx_commit.assert_called_once_with()
             pool.map.assert_called_once_with(

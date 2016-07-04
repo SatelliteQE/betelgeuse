@@ -520,6 +520,11 @@ def test_results(path):
     type=click.Path(exists=True),
 )
 @click.option(
+    '--not-automated',
+    help='Set if the test run should not be flagged as automated.',
+    is_flag=True,
+)
+@click.option(
     '--test-run-id',
     default='test-run-{0}'.format(time.time()),
     help='Test Run ID to be created/updated.',
@@ -547,9 +552,10 @@ def test_results(path):
 @click.argument('project')
 @click.pass_context
 def test_run(
-        context, path, source_code_path, test_run_id, test_run_type,
-        test_template_id, user, project):
+        context, path, source_code_path, not_automated, test_run_id,
+        test_run_type, test_template_id, user, project):
     """Execute a test run based on jUnit XML file."""
+    isautomated = not not_automated
     test_run_id = re.sub(INVALID_TEST_RUN_CHARS_REGEX, '', test_run_id)
     testcases = {
         generate_test_id(test): test.tokens.get('id')
@@ -565,10 +571,17 @@ def test_run(
         click.echo(err, err=True)
         click.echo('Creating test run {0}.'.format(test_run_id))
         test_run = TestRun.create(
-            project, test_run_id, test_template_id, type=test_run_type)
+            project, test_run_id, test_template_id, isautomated=isautomated,
+            type=test_run_type)
 
+    update = False
     if test_run.type != test_run_type:
         test_run.type = test_run_type
+        update = True
+    if test_run.isautomated != isautomated:
+        test_run.isautomated = isautomated
+        update = True
+    if update:
         test_run.update()
 
     OBJ_CACHE['test_run'] = test_run
