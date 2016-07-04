@@ -525,6 +525,16 @@ def test_results(path):
     help='Test Run ID to be created/updated.',
 )
 @click.option(
+    '--test-run-type',
+    default='buildacceptance',
+    help='Test Run Type.',
+    type=click.Choice([
+        'buildacceptance',
+        'regression',
+        'featureverification',
+    ])
+)
+@click.option(
     '--test-template-id',
     default='Empty',
     help='Test Template ID to create the Test Run.',
@@ -536,8 +546,9 @@ def test_results(path):
 )
 @click.argument('project')
 @click.pass_context
-def test_run(context, path, source_code_path, test_run_id, test_template_id,
-             user, project):
+def test_run(
+        context, path, source_code_path, test_run_id, test_run_type,
+        test_template_id, user, project):
     """Execute a test run based on jUnit XML file."""
     test_run_id = re.sub(INVALID_TEST_RUN_CHARS_REGEX, '', test_run_id)
     testcases = {
@@ -553,7 +564,12 @@ def test_run(context, path, source_code_path, test_run_id, test_template_id,
     except PylarionLibException as err:
         click.echo(err, err=True)
         click.echo('Creating test run {0}.'.format(test_run_id))
-        test_run = TestRun.create(project, test_run_id, test_template_id)
+        test_run = TestRun.create(
+            project, test_run_id, test_template_id, type=test_run_type)
+
+    if test_run.type != test_run_type:
+        test_run.type = test_run_type
+        test_run.update()
 
     OBJ_CACHE['test_run'] = test_run
     OBJ_CACHE['user'] = user
