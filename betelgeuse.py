@@ -402,7 +402,7 @@ def add_test_case(args):
             'requirement', parse_requirement_name(path))
         if len(results) == 0:
             click.echo(
-                'Creating test case {0} for requirement {1}.'
+                'Creating test case {0} for requirement: {1}.'
                 .format(test.name, requirement_name)
             )
             if not collect_only:
@@ -426,7 +426,7 @@ def add_test_case(args):
                     test_case.test_steps = test_steps
                 test_case.update()
             click.echo(
-                'Linking test case {0} to verify requirement {1}.'
+                'Linking test case {0} to requirement: {1}.'
                 .format(test.name, requirement_name)
             )
             if not collect_only:
@@ -594,7 +594,6 @@ def test_case(context, path, collect_only, project):
     testcases = testimony.get_testcases([path])
     OBJ_CACHE['collect_only'] = collect_only
     OBJ_CACHE['project'] = project
-
     pool = multiprocessing.Pool(context.obj['jobs'])
     pool.map(add_test_case, testcases.items())
     pool.close()
@@ -609,7 +608,7 @@ def test_case(context, path, collect_only, project):
     type=click.Path(exists=True, dir_okay=False),
 )
 def test_results(path):
-    """Show a summary for test cases contained in a jUnit XML file."""
+    """Summary of tests from the jUnit XML file."""
     test_summary = parse_test_results(parse_junit(path))
     summary = '\n'.join(
         ['{0}: {1}'.format(*status) for status in test_summary.items()]
