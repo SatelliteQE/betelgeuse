@@ -33,6 +33,7 @@ from pylarion.work_item import (
     TestStep,
     TestSteps,
 )
+from pylarion.plan import Plan
 from pylarion.test_run import TestRun
 
 
@@ -41,7 +42,7 @@ logging.captureWarnings(True)
 # Avoid SSL errors
 ssl._create_default_https_context = ssl._create_unverified_context
 
-INVALID_TEST_RUN_CHARS_REGEX = re.compile(r'[\\/.:"<>|~!@#$?%^&\'*()+`,=]')
+INVALID_CHARS_REGEX = re.compile(r'[\\/.:"<>|~!@#$?%^&\'*()+`,=]')
 
 POLARION_STATUS = {
     'error': 'failed',
@@ -540,6 +541,52 @@ def add_test_record(result):
         raise
 
 
+def create_test_plan(plan_name, plan_type, parent_plan_name, project):
+    """Task that creates a new Test Plans.
+
+    This task relies on ``OBJ_CACHE`` to get the collect_only and project
+    objects.
+
+    :param plan_name: A string to be used as the name for new Test Plan.
+    :param plan_type: A string identifying the type of Test Plan to create.
+        Valid options are `release` or `iteration`.
+    :param parent_plan_name: A (optional) string identifying an existing
+        parent Test Plan to which this new plan should be associated to.
+    :param project: A string identifying the Project to be used.
+
+    :returns: A `Test Plan` object.
+    """
+    # Sanitize names to valid values for IDs...
+    plan_id = re.sub(INVALID_CHARS_REGEX, '_', plan_name)
+    parent_plan_id = (
+        re.sub(INVALID_CHARS_REGEX, '_', parent_plan_name)
+        if parent_plan_name
+        else parent_plan_name)
+    # ... and get rid of any spaces left
+    plan_id = plan_id.replace(' ', '_')
+    # parent_plan_id could be None
+    if parent_plan_id:
+        parent_plan_id = parent_plan_id.replace(' ', '_')
+
+    # Search for plan first
+    result = Plan.search('id:{0}'.format(plan_id))
+    if len(result) == 1:
+        click.echo('Found Test Plan {0}.'.format(plan_name))
+        return result[0]
+
+    # No plan created, let's create one
+    plan = Plan.create(
+        plan_id=plan_id,
+        plan_name=plan_name,
+        project_id=project,
+        parent_id=parent_plan_id,
+        template_id=plan_type
+    )
+    click.echo(
+        'Created new Test Plan {0} with ID {1}'.format(plan_name, plan_id))
+    return plan
+
+
 @click.group()
 @click.option(
     '--jobs',
@@ -598,6 +645,32 @@ def test_case(context, path, collect_only, project):
     pool.map(add_test_case, testcases.items())
     pool.close()
     pool.join()
+
+
+@cli.command('test-plan')
+@click.option(
+    '--name',
+    default='test-plan-{0}'.format(time.time()),
+    help='Name for new Test Plan.',
+)
+@click.option(
+    '--plan-type',
+    default='release',
+    help='Test Plans can be Releases or Iterations.',
+    type=click.Choice([
+        'release',
+        'iteration',
+    ])
+)
+@click.option(
+    '--parent-name',
+    help='Name of parent Test Plan to link to.',
+)
+@click.argument('project')
+@click.pass_context
+def test_plan(context, name, plan_type, parent_name, project):
+    """Create a new test plan in Polarion."""
+    create_test_plan(name, plan_type, parent_name, project)
 
 
 @cli.command('test-results')
@@ -665,7 +738,7 @@ def test_run(
         test_run_type, test_template_id, user, project):
     """Execute a test run based on jUnit XML file."""
     isautomated = not not_automated
-    test_run_id = re.sub(INVALID_TEST_RUN_CHARS_REGEX, '', test_run_id)
+    test_run_id = re.sub(INVALID_CHARS_REGEX, '', test_run_id)
     testcases = {
         generate_test_id(test): test.tokens.get('id')
         for test in itertools.chain(
