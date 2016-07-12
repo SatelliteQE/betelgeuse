@@ -2,8 +2,8 @@ Betelgeuse documentation
 ========================
 
 .. contents:: Topics
+    :local:
 
-.. _what_is_betelgeuse:
 
 What is Betelgeuse?
 ```````````````````
@@ -19,8 +19,6 @@ Betelgeuse uses `Testimony <https://pypi.python.org/pypi/testimony>`_ and
 Pylarion projects to parse test cases and communicate with polarion
 respectively.
 
-.. _prerequisites:
-
 Prerequisites
 `````````````
 
@@ -30,8 +28,6 @@ create/update the following entities in Polarion:
 * requirement
 * test case
 * test run
-
-.. _quick_start:
 
 Quick Start
 ```````````
@@ -49,21 +45,19 @@ Quick Start
 
 2. Install betelguese from pypi.
 
-   .. code-block:: bash
+   .. code-block:: console
 
        $ pip install betelgeuse
 
 3. Alternatively you can install from source:
 
-   .. code-block:: bash
+   .. code-block:: console
 
        $ git clone https://github.com/SatelliteQE/betelgeuse.git 
        $ cd betelgeuse
        $ pip install -e .
 
    .. note:: It is always recommended to use python virtual environment
-
-.. _how_it_works:
 
 How it works?
 `````````````
@@ -91,7 +85,7 @@ Assuming that you have a ``test_user.py`` file with the following content:
 Using the example above, Betelgeuse will recognize that there are 2 test cases
 available, and the following attributes will be derived:
 
-* Name: this attribute will be derived from the name of the test method itself
+* Name: this attribute will be derived from the name of the test method itself:
 
       - test_positive_create_user
       - test_positive_create_car
@@ -141,8 +135,6 @@ information, and this can be handled by the use of Testimony tokens.
            import uuid
            uuid.uuid4()
 
-.. _usage_examples:
-
 Usage Examples
 ``````````````
 
@@ -155,18 +147,14 @@ Usage Examples
 
   2. Always run the test runner and Betelgeuse on the same directory to make
   sure that the test run ID mapping works fine.  Otherwise Betelgeuse may
-  report ID errors.  More info can be found in test_run_command_ section
-
-.. _help_command:
+  report ID errors.  More info can be found in `test-run command`_ section
 
 help command
 ++++++++++++
 
-.. code-block:: bash
+.. code-block:: console
 
     $ betelgeuse --help
-
-.. _test_case_command:
 
 test-case command
 +++++++++++++++++
@@ -190,7 +178,7 @@ steps:
       is already present, it will be updated.  Otherwise, it will be created and
       linked to the requirement.
 
-.. code-block:: bash
+.. code-block:: console
 
     $ betelgeuse test-case --path sample_project/tests/ PROJECT_CLOUD
 
@@ -212,7 +200,7 @@ steps:
    dry run mode and shows the changes it would have made wihtout actually making
    them:
 
-     .. code-block:: bash
+     .. code-block:: console
 
          $ betelgeuse test-case --path sample_project/tests/ PROJECT_CLOUD \
          --collect-only
@@ -220,21 +208,17 @@ steps:
          Creating test case test_login_1 for requirement: Login Example.
          Linking test case test_login_1 to requirement: Login Example.
 
-.. _test_results_command:
-
 test-results command
 ++++++++++++++++++++
 
 Gives a nice summary of test cases/results in the given jUnit XML file.
 
-.. code-block:: bash
+.. code-block:: console
 
     $ betelgeuse test-results --path \
     sample_project/results/sample-junit-result.xml
 
     Passed: 1
-
-.. _test_run_command:
 
 test-run command
 ++++++++++++++++
@@ -246,7 +230,7 @@ XML file. This command performs the following steps:
 - Creates a new test run or updates an existing run with all the parsed test
   case items and their run statuses.
 
-.. code-block:: bash
+.. code-block:: console
 
     $ betelgeuse test-run --path sample_project/results/sample-junit-result.xml \
     --test-run-id regression_test_run_1 --test-template-id Empty --user \
@@ -298,8 +282,6 @@ With the above report, Betelgeuse performs the following:
     test case in the jUnit XML file.  For this reason, it is highly recommended
     to run ``test-command`` command before ``test-run`` to make sure all
     required test cases are created/updated accordingly.
-
-.. _case_study:
 
 Case Study - A real world sample Test Case
 ```````````````````````````````````````````
