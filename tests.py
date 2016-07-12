@@ -6,7 +6,7 @@ import re
 
 from click.testing import CliRunner
 from betelgeuse import (
-    INVALID_TEST_RUN_CHARS_REGEX,
+    INVALID_CHARS_REGEX,
     RST_PARSER,
     JobNumberParamType,
     PylarionLibException,
@@ -227,7 +227,7 @@ def test_get_multiple_steps_diff_items():
 
 def test_invalid_test_run_chars_regex():
     invalid_test_run_id = '\\/.:*"<>|~!@#$?%^&\'*()+`,='
-    assert re.sub(INVALID_TEST_RUN_CHARS_REGEX, '', invalid_test_run_id) == ''
+    assert re.sub(INVALID_CHARS_REGEX, '', invalid_test_run_id) == ''
 
 
 def test_job_param_type():
