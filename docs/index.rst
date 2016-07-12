@@ -23,6 +23,7 @@ respectively.
 
 Prerequisites
 `````````````
+
 Login to polarion in a browser to check if the login user has permissions to
 create/update the following entities in Polarion:
 
@@ -34,6 +35,7 @@ create/update the following entities in Polarion:
 
 Quick Start
 ```````````
+
 1. Betelgeuse uses Pylarion to interact with polarion. Install Pylarion from its
    source.
 
@@ -61,10 +63,89 @@ Quick Start
 
    .. note:: It is always recommended to use python virtual environment
 
+.. _how_it_works:
+
+How it works?
+`````````````
+
+Assuming that you have a ``test_user.py`` file with the following content:
+
+.. code-block:: python
+
+    import entities
+    import unittest
+
+
+    class EntitiesTest(unittest.TestCase):
+
+        def test_positive_create_user(self):
+            user = entities.User(name='David', age=20)
+            self.assertEqual(user.name, 'David')
+            self.assertEqual(user.age, 20)
+
+        def test_positive_create_car(self):
+            car = entities.Car(make='Honda', year=2016)
+            self.assertEqual(car.make, 'Honda')
+            self.assertEqual(car.year, 2016)
+
+Using the example above, Betelgeuse will recognize that there are 2 test cases
+available, and the following attributes will be derived:
+
+* Name: this attribute will be derived from the name of the test method itself
+
+      - test_positive_create_user
+      - test_positive_create_car
+
+* ID: this attribute will be derived from the concatenation of the
+  *module.test_name* or *module.ClassName.test_name* if the test method is
+  defined within a class. In other words, *the Python import path* will be used
+  to derived the ID. Using our example, the values generated would be:
+
+      - test_user.EntitiesTest.test_positive_create_user
+      - test_user.EntitiesTest.test_positive_create_car
+
+By default, the values automatically derived by Betelgeuse are not very
+flexible, specially in the case when you rename an existing test case or move it
+to a different class or module. It is recommended, therefore, the use of
+Testimony ``tokens`` to provide a bit more information about the tests.
+
+.. code-block:: python
+
+      import entities
+      import unittest
+
+
+      class EntitiesTest(unittest.TestCase):
+
+          def test_positive_create_user(self):
+              """Create a new user providing all expected attributes.
+
+              @ID: 1d73b8cc-a754-4637-8bae-d9d2aaf89003
+              """
+              user = entities.User(name='David', age=20)
+              self.assertEqual(user.name, 'David')
+              self.assertEqual(user.age, 20)
+
+Now Betelgeuse can use this first line to derive a friendlier name for your test
+(instead of using *test_positive_create_user*) and a specific value for its ID.
+Other information can also be added to the docstring to provide more
+information, and this can be handled by the use of Testimony tokens.
+
+.. note::
+
+    1. Make sure that your ``IDs`` are indeed unique per test case.
+    2. You can generate a unique UUID using the following code snippet.
+
+       .. code-block :: python
+
+           import uuid
+           uuid.uuid4()
+
 .. _usage_examples:
 
 Usage Examples
 ``````````````
+
 .. note::
 
   1. For easy understanding of Betelgeuse, this repository is already included with
@@ -89,6 +170,7 @@ help command
 
 test-case command
 +++++++++++++++++
+
 Creates/Updates test cases in polarion. This command performs the following
 steps:
 
@@ -142,6 +224,7 @@ steps:
 
 test-results command
 ++++++++++++++++++++
+
 Gives a nice summary of test cases/results in the given jUnit XML file.
 
 .. code-block:: bash
@@ -155,6 +238,7 @@ Gives a nice summary of test cases/results in the given jUnit XML file.
 
 test-run command
 ++++++++++++++++
+
 Creates/Updates a test run in polarion using the information in the given jUnit
 XML file. This command performs the following steps:
 
@@ -214,3 +298,102 @@ With the above report, Betelgeuse performs the following:
     test case in the jUnit XML file.  For this reason, it is highly recommended
     to run ``test-command`` command before ``test-run`` to make sure all
     required test cases are created/updated accordingly.
+
+.. _case_study:
+
+Case Study - A real world sample Test Case
+```````````````````````````````````````````
+
+Testimony tokens can be used to provide more information about a test case.  The
+more information one provides via these tokens, the more accurate the data being
+imported into Polarion.  For example:
+
+.. code-block:: python
+
+  import entities
+  import unittest
+
+  class EntitiesTest(unittest.TestCase):
+
+      def test_positive_create_user(self):
+          """Create a new user providing all expected attributes.
+
+          @Assert: User is successfully created 
+          @ID: 1d73b8cc-a754-4637-8bae-d9d2aaf89003
+          @Requirement: User Management
+          @CaseAutomation: Automated
+          @CaseLevel: Acceptance
+          @CaseComponent: CLI
+          @TestType: Functional
+          @CaseImportance: High
+          @Upstream: No
+          """
+          user = entities.User(name='David', age=20)
+          self.assertEqual(user.name, 'David')
+          self.assertEqual(user.age, 20)
+
+When the above test case is ran, Betelgeuse will make use of all 9 tokens
+provided and generates a more meaningful test case.
+
+Ok, this is cool. But wait, there is more! If you already read
+`Testimony documentation <http://testimony-qe.readthedocs.io/>`_, it supports
+tokens at different levels, namely:
+
+  - function level
+  - class level
+  - module level
+
+This feature can be leveraged to minimize the amount of information that needs
+to be written for each test case. Since most of the time, test cases grouped in
+a module usually share the same generic information, one could move most of
+these tokens to the ``module`` level and every single test case found by
+Betelgeuse will inherit these attributes. For example:
+
+
+.. code:: python
+
+    """Test cases for entities.
+
+    @Requirement: User Management
+    @CaseAutomation: Automated
+    @CaseLevel: Acceptance
+    @CaseComponent: CLI
+    @TestType: Functional
+    @CaseImportance: High
+    @Upstream: No
+    """
+
+    import entities
+    import unittest
+
+
+    class EntitiesTest(unittest.TestCase):
+
+        def test_positive_create_user(self):
+            """Create a new user providing all expected attributes.
+
+            @Assert: User is successfully created
+            @ID: 1d73b8cc-a754-4637-8bae-d9d2aaf89003
+            """
+            user = entities.User(name='David', age=20)
+            self.assertEqual(user.name, 'David')
+            self.assertEqual(user.age, 20)
+
+
+        def test_positive_create_car(self):
+            """Create a new car providing all expected attributes.
+
+            @Assert: Car is successfully created and has no owner
+            @ID: 71b9b000-b978-4a95-b6f8-83c09ed39c01
+            @CaseImportance: Medium
+            """
+            car = entities.Car(make='Honda', year=2016)
+            self.assertEqual(car.make, 'Honda')
+            self.assertEqual(car.year, 2016)
+
+Now all discovered test cases will inherit the attributes defined at the module
+level. Furthermore, the test case attributes can be overridden at the *class
+level* or at the *test case level*.  Using the example above, since
+``test_positive_create_car`` has its own *CaseImportance* token defined,
+Betelgeuse will use its value of *Medium* for this test case alone while all
+other test cases will have a value of *High*, derived from the module.
