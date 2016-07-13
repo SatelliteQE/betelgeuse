@@ -541,52 +541,6 @@ def add_test_record(result):
         raise
 
 
-def create_test_plan(plan_name, plan_type, parent_plan_name, project):
-    """Task that creates a new Test Plans.
-
-    This task relies on ``OBJ_CACHE`` to get the collect_only and project
-    objects.
-
-    :param plan_name: A string to be used as the name for new Test Plan.
-    :param plan_type: A string identifying the type of Test Plan to create.
-        Valid options are `release` or `iteration`.
-    :param parent_plan_name: A (optional) string identifying an existing
-        parent Test Plan to which this new plan should be associated to.
-    :param project: A string identifying the Project to be used.
-
-    :returns: A `Test Plan` object.
-    """
-    # Sanitize names to valid values for IDs...
-    plan_id = re.sub(INVALID_CHARS_REGEX, '_', plan_name)
-    parent_plan_id = (
-        re.sub(INVALID_CHARS_REGEX, '_', parent_plan_name)
-        if parent_plan_name
-        else parent_plan_name)
-    # ... and get rid of any spaces left
-    plan_id = plan_id.replace(' ', '_')
-    # parent_plan_id could be None
-    if parent_plan_id:
-        parent_plan_id = parent_plan_id.replace(' ', '_')
-
-    # Search for plan first
-    result = Plan.search('id:{0}'.format(plan_id))
-    if len(result) == 1:
-        click.echo('Found Test Plan {0}.'.format(plan_name))
-        return result[0]
-
-    # No plan created, let's create one
-    plan = Plan.create(
-        plan_id=plan_id,
-        plan_name=plan_name,
-        project_id=project,
-        parent_id=parent_plan_id,
-        template_id=plan_type
-    )
-    click.echo(
-        'Created new Test Plan {0} with ID {1}'.format(plan_name, plan_id))
-    return plan
-
-
 @click.group()
 @click.option(
     '--jobs',
@@ -670,7 +624,27 @@ def test_case(context, path, collect_only, project):
 @click.pass_context
 def test_plan(context, name, plan_type, parent_name, project):
     """Create a new test plan in Polarion."""
-    create_test_plan(name, plan_type, parent_name, project)
+    # Sanitize names to valid values for IDs...
+    plan_id = re.sub(INVALID_CHARS_REGEX, '_', name).replace(' ', '_')
+    parent_plan_id = (
+        re.sub(INVALID_CHARS_REGEX, '_', parent_name).replace(' ', '_')
+        if parent_name else parent_name
+    )
+
+    # Check if the test plan already exists
+    result = Plan.search('id:{0}'.format(plan_id))
+    if len(result) == 1:
+        click.echo('Found Test Plan {0}.'.format(name))
+        return
+
+    Plan.create(
+        parent_id=parent_plan_id,
+        plan_id=plan_id,
+        plan_name=name,
+        project_id=project,
+        template_id=plan_type
+    )
+    click.echo('Created new Test Plan {0} with ID {1}.'.format(name, plan_id))
 
 
 @cli.command('test-results')
