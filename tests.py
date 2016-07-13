@@ -310,6 +310,74 @@ def test_test_case(cli_runner):
             pool.join.assert_called_once_with()
 
 
+def test_test_plan(cli_runner):
+    """Check if test-plan command runs with minimal parameters."""
+    with mock.patch('betelgeuse.Plan') as plan:
+        plan.search.return_value = []
+        result = cli_runner.invoke(
+            cli,
+            [
+                'test-plan',
+                '--name', 'Test Plan Name',
+                'PROJECT'
+            ]
+        )
+        assert result.exit_code == 0
+        plan.create.assert_called_once_with(
+            parent_id=None,
+            plan_id='Test_Plan_Name',
+            plan_name='Test Plan Name',
+            project_id='PROJECT',
+            template_id='release',
+        )
+
+
+def test_test_plan_with_parent(cli_runner):
+    """Check if test-plan command runs when passing a parent test plan."""
+    with mock.patch('betelgeuse.Plan') as plan:
+        plan.search.return_value = []
+        result = cli_runner.invoke(
+            cli,
+            [
+                'test-plan',
+                '--name', 'Test Plan Name',
+                '--parent-name', 'Parent Test Plan Name',
+                'PROJECT'
+            ]
+        )
+        assert result.exit_code == 0
+        plan.create.assert_called_once_with(
+            parent_id='Parent_Test_Plan_Name',
+            plan_id='Test_Plan_Name',
+            plan_name='Test Plan Name',
+            project_id='PROJECT',
+            template_id='release',
+        )
+
+
+def test_test_plan_with_iteration_type(cli_runner):
+    """Check if test-plan command creates a iteration test plan."""
+    with mock.patch('betelgeuse.Plan') as plan:
+        plan.search.return_value = []
+        result = cli_runner.invoke(
+            cli,
+            [
+                'test-plan',
+                '--name', 'Test Plan Name',
+                '--plan-type', 'iteration',
+                'PROJECT'
+            ]
+        )
+        assert result.exit_code == 0
+        plan.create.assert_called_once_with(
+            parent_id=None,
+            plan_id='Test_Plan_Name',
+            plan_name='Test Plan Name',
+            project_id='PROJECT',
+            template_id='iteration',
+        )
+
+
 def test_test_results(cli_runner):
     with cli_runner.isolated_filesystem():
         with open('results.xml', 'w') as handler:
