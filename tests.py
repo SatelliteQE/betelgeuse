@@ -14,6 +14,7 @@ from betelgeuse import (
     add_test_record,
     cli,
     generate_test_steps,
+    load_custom_fields,
     map_steps,
     parse_junit,
     parse_requirement_name,
@@ -172,6 +173,30 @@ def test_generate_test_steps():
     assert test_steps.keys == ['step', 'expectedResult']
     for step, expected in zip(test_steps.steps, steps):
         assert step.values == list(expected)
+
+
+def test_load_custom_fields():
+    """Check if custom fields can be loaded using = notation."""
+    assert load_custom_fields(('isautomated=true',)) == {
+        'isautomated': 'true'
+    }
+
+
+def test_load_custom_fields_empty():
+    """Check if empty value return empty dict for custom fields."""
+    assert load_custom_fields(('',)) == {}
+
+
+def test_load_custom_fields_none():
+    """Check if None value return empty dict for custom fields."""
+    assert load_custom_fields(None) == {}
+
+
+def test_load_custom_fields_json():
+    """Check if custom fields can be loaded using JSON data."""
+    assert load_custom_fields(('{"isautomated":true}',)) == {
+        'isautomated': True,
+    }
 
 
 def test_map_single_step():
@@ -449,15 +474,24 @@ def test_test_run_new_test_run(cli_runner):
                 cli,
                 [
                     'test-run',
-                    '--path', 'junit_report.xml',
-                    '--test-run-id', 'testrunid',
+                    '--path',
+                    'junit_report.xml',
+                    '--test-run-id',
+                    'testrunid',
+                    '--custom-fields',
+                    '{"arch": "x86_64", "isautomated": true}',
                     'PROJECT'
                 ]
             )
             assert result.exit_code == 0
             patches['TestRun'].create.assert_called_once_with(
-                'PROJECT', 'testrunid', 'Empty', isautomated=True,
-                type='buildacceptance')
+                'PROJECT',
+                'testrunid',
+                'Empty',
+                arch='x86_64',
+                isautomated=True,
+                type='buildacceptance',
+            )
             patches['TestRun'].session.tx_begin.assert_called_once_with()
             patches['TestRun'].session.tx_commit.assert_called_once_with()
             pool.map.assert_called_once_with(

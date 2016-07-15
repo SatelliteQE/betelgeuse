@@ -14,6 +14,7 @@ import docutils
 import docutils.core
 import docutils.io
 import itertools
+import json
 import logging
 import multiprocessing
 import re
@@ -124,6 +125,29 @@ def generate_test_id(test):
     if test.parent_class is not None:
         test_case_id_parts.insert(-1, test.parent_class)
     return '.'.join(test_case_id_parts)
+
+
+def load_custom_fields(custom_fields_opt):
+    """Load the custom fields from the --custom-fields option.
+
+    The --custom-fields option can receive either a string on the format
+    ``key=value`` or a JSON string ``{"key":"value"}``, which will be loaded
+    into a dictionary.
+
+    If the value passed is not in JSON or key=value format it will be ignored.
+
+    :param custom_fields_opt: A tuple of --custom-fields option.
+    """
+    custom_fields = {}
+    if not custom_fields_opt:
+        return custom_fields
+    for item in custom_fields_opt:
+        if item.startswith('{'):
+            custom_fields.update(json.loads(item))
+        elif '=' in item:
+            key, value = item.split('=', 1)
+            custom_fields[key.strip()] = value.strip()
+    return custom_fields
 
 
 def map_steps(steps, expectedresults):
@@ -676,11 +700,6 @@ def test_results(path):
     type=click.Path(exists=True),
 )
 @click.option(
-    '--not-automated',
-    help='Set if the test run should not be flagged as automated.',
-    is_flag=True,
-)
-@click.option(
     '--test-run-id',
     default='test-run-{0}'.format(time.time()),
     help='Test Run ID to be created/updated.',
@@ -705,13 +724,18 @@ def test_results(path):
     default='betelgeuse',
     help='User that is executing the Test Run.',
 )
+@click.option(
+    '--custom-fields',
+    help='Custom fields to be passed when creating a new test run.',
+    multiple=True,
+)
 @click.argument('project')
 @click.pass_context
 def test_run(
-        context, path, source_code_path, not_automated, test_run_id,
-        test_run_type, test_template_id, user, project):
+        context, path, source_code_path, test_run_id, test_run_type,
+        test_template_id, user, custom_fields, project):
     """Execute a test run based on jUnit XML file."""
-    isautomated = not not_automated
+    custom_fields = load_custom_fields(custom_fields)
     test_run_id = re.sub(INVALID_CHARS_REGEX, '', test_run_id)
     testcases = {
         generate_test_id(test): test.tokens.get('id')
@@ -727,16 +751,17 @@ def test_run(
         click.echo(err, err=True)
         click.echo('Creating test run {0}.'.format(test_run_id))
         test_run = TestRun.create(
-            project, test_run_id, test_template_id, isautomated=isautomated,
-            type=test_run_type)
+            project, test_run_id, test_template_id, type=test_run_type,
+            **custom_fields)
 
     update = False
     if test_run.type != test_run_type:
         test_run.type = test_run_type
         update = True
-    if test_run.isautomated != isautomated:
-        test_run.isautomated = isautomated
-        update = True
+    for field, value in custom_fields.items():
+        if getattr(test_run, field) != value:
+            setattr(test_run, field, value)
+            update = True
     if update:
         test_run.update()
 
