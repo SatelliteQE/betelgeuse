@@ -208,6 +208,47 @@ steps:
          Creating test case test_login_1 for requirement: Login Example.
          Linking test case test_login_1 to requirement: Login Example.
 
+test-plan command
++++++++++++++++++
+
+The test-plan command allows creating a parent or child test plans.  This is
+done by using --parent-name option.
+
+Create a parent test plan
+    If ``parent-name`` option is not specified, then just a parent test plan
+    will be created.
+
+Create a child test plan
+    If ``parent-name`` option is specified, then a child test plan will be
+    created and linked to the specified parent test plan.
+
+Betelgeuse will automatically generate the test plan IDs from the passed test
+plan names by replacing special characters and converting spaces to ``_``.
+
+.. warning::
+
+    Make sure to pass the right names for the test plans in order to find the
+    expected work items in Polarion. Otherwise, you may see an error.
+
+Examples:
+
+.. code-block:: console
+
+    $ betelgeuse test-plan --name "Parent Name" PROJECT_CLOUD
+    Created new Test Plan Parent Name with ID Parent_Name.
+
+    $ betelgeuse test-plan \
+        --name "Child Name" \
+        --parent-name "Parent Name" \
+        PROJECT_CLOUD
+    Created new Test Plan Child Name with ID Child_Name.
+
+.. note::
+
+    Use ``--plan-type`` to set the plan type of a test plan to ``release`` or
+    ``iteration``.  The default value is ``release``.
+
+
 test-results command
 ++++++++++++++++++++
 
