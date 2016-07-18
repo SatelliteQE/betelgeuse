@@ -53,7 +53,7 @@ Quick Start
 
    .. code-block:: console
 
-       $ git clone https://github.com/SatelliteQE/betelgeuse.git 
+       $ git clone https://github.com/SatelliteQE/betelgeuse.git
        $ cd betelgeuse
        $ pip install -e .
 
@@ -188,7 +188,7 @@ steps:
     Creating requirement Login Example.
 
 .. note::
-  
+
   * ``PROJECT_CLOUD`` is the polarion project id and not the project name.  This
     can be found in Polarion -> Settings (icon) -> Administration -> ID.
   * ``path`` is the path of the folder which has the test cases source code.
@@ -270,7 +270,7 @@ With the above report, Betelgeuse performs the following:
   token of the test method or function is identified.  This id is then queried
   against Polarion for a matching work item id (Polarion test case).  Once the
   work item id is identified, Betelgeuse will add the result for this test
-  case work item id in the test run. 
+  case work item id in the test run.
 
 .. warning::
 
@@ -282,6 +282,50 @@ With the above report, Betelgeuse performs the following:
     test case in the jUnit XML file.  For this reason, it is highly recommended
     to run ``test-command`` command before ``test-run`` to make sure all
     required test cases are created/updated accordingly.
+
+The test-run command allows setting custom fields in order to better define the
+environment. There are two ways to define custom fields:
+
+``key=value`` format
+    This a shortcut when you want to define plain strings as the value of   a
+    custom field.
+
+JSON format
+    This approach suits better when the type of the custom field matters.  For
+    example, if a custom field expects a boolean as a value.
+
+Example using ``key=value`` format:
+
+.. code-block:: console
+
+    $ betelgeuse test-run \
+        --path sample_project/results/sample-junit-result.xml \
+        --test-run-id regression_test_run_1 \
+        --test-template-id Empty
+        --user testuser1 \
+        --source-code-path sample_project/tests/ \
+        --custom-fields arch=x8664 \
+        --custom-fields variant=server \
+        PROJECT_CLOUD
+
+Example using JSON format:
+
+.. code-block:: console
+
+    $ betelgeuse test-run \
+        --path sample_project/results/sample-junit-result.xml \
+        --test-run-id regression_test_run_1 \
+        --test-template-id Empty
+        --user testuser1 \
+        --source-code-path sample_project/tests/ \
+        --custom-fields '{"isautomated":true,"arch":"x8664"}' \
+        PROJECT_CLOUD
+
+.. warning::
+
+    Make sure to pass the right value for the custom fields as Betelgeuse does
+    not validate them. If an unexpected value is found, the command will fail
+    with a stack trace showing the error.
 
 Case Study - A real world sample Test Case
 ```````````````````````````````````````````
@@ -300,7 +344,7 @@ imported into Polarion.  For example:
       def test_positive_create_user(self):
           """Create a new user providing all expected attributes.
 
-          @Assert: User is successfully created 
+          @Assert: User is successfully created
           @ID: 1d73b8cc-a754-4637-8bae-d9d2aaf89003
           @Requirement: User Management
           @CaseAutomation: Automated
