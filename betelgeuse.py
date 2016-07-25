@@ -648,31 +648,52 @@ def test_case(context, path, collect_only, project):
     '--parent-name',
     help='Name of parent Test Plan to link to.',
 )
+@click.option(
+    '--custom-fields',
+    help='Custom fields for the test plan.',
+    multiple=True,
+)
 @click.argument('project')
 @click.pass_context
-def test_plan(context, name, plan_type, parent_name, project):
+def test_plan(context, name, plan_type, parent_name, custom_fields, project):
     """Create a new test plan in Polarion."""
     # Sanitize names to valid values for IDs...
+    custom_fields = load_custom_fields(custom_fields)
     plan_id = re.sub(INVALID_CHARS_REGEX, '_', name).replace(' ', '_')
     parent_plan_id = (
         re.sub(INVALID_CHARS_REGEX, '_', parent_name).replace(' ', '_')
         if parent_name else parent_name
     )
-
     # Check if the test plan already exists
     result = Plan.search('id:{0}'.format(plan_id))
     if len(result) == 1:
         click.echo('Found Test Plan {0}.'.format(name))
-        return
+        test_plan = result[0]
+    else:
+        # Unlike Testrun, Pylarion currently does not accept **kwargs in
+        # Plan.create() so the custom fields need to be updated after the
+        # creation
+        test_plan = Plan.create(
+            parent_id=parent_plan_id,
+            plan_id=plan_id,
+            plan_name=name,
+            project_id=project,
+            template_id=plan_type
+        )
+        click.echo(
+            'Created new Test Plan {0} with ID {1}.'.format(name, plan_id))
 
-    Plan.create(
-        parent_id=parent_plan_id,
-        plan_id=plan_id,
-        plan_name=name,
-        project_id=project,
-        template_id=plan_type
-    )
-    click.echo('Created new Test Plan {0} with ID {1}.'.format(name, plan_id))
+    update = False
+    for field, value in custom_fields.items():
+        if getattr(test_plan, field) != value:
+            setattr(test_plan, field, value)
+            click.echo(
+                'Test Plan {0} updated with {1}={2}.'.format(
+                    test_plan.name, field, value)
+            )
+            update = True
+    if update:
+        test_plan.update()
 
 
 @cli.command('test-results')
@@ -765,6 +786,10 @@ def test_run(
     for field, value in custom_fields.items():
         if getattr(test_run, field) != value:
             setattr(test_run, field, value)
+            click.echo(
+                'Test Run {0} updated with {1}={2}.'.format(
+                    test_run_id, field, value)
+            )
             update = True
     if update:
         test_run.update()
