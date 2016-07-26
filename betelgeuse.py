@@ -371,6 +371,7 @@ def add_test_case(args):
         # Fetch the test case id if the @Id tag is present otherwise generate a
         # test_case_id based on the test Python import path
         test_case_id = test.tokens.get('id', generate_test_id(test))
+        test.name = test.tokens.get('title', test_case_id)
         if test.docstring:
             if not type(test.docstring) == unicode:
                 test.docstring = test.docstring.decode('utf8')
@@ -414,6 +415,7 @@ def add_test_case(args):
 
         results = []
         if not collect_only:
+            test_case_id = '"{}"'.format(test_case_id)
             results = TestCase.query(
                 test_case_id,
                 fields=[
@@ -595,6 +597,7 @@ def cli(context, jobs):
         'subtype1',
         'testtype',
         'upstream',
+        'title',
     ]
     testimony.SETTINGS['minimum_tokens'] = ['id']
 
