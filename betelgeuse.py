@@ -402,6 +402,7 @@ def add_test_case(args):
             'testtype',
             'functional'
         ).lower()
+        title = test.tokens.get('title', test.name)
         upstream = test.tokens.get('upstream', 'no').lower()
         steps = test.tokens.get('steps')
         expectedresults = test.tokens.get('expectedresults')
@@ -428,12 +429,12 @@ def add_test_case(args):
         if len(results) == 0:
             click.echo(
                 'Creating test case {0} for requirement: {1}.'
-                .format(test.name, requirement_name)
+                .format(title, requirement_name)
             )
             if not collect_only:
                 test_case = TestCase.create(
                     project,
-                    test.name,
+                    title,
                     description,
                     caseautomation=auto_status,
                     casecomponent=casecomponent,
@@ -452,7 +453,7 @@ def add_test_case(args):
                 test_case.update()
             click.echo(
                 'Linking test case {0} to requirement: {1}.'
-                .format(test.name, requirement_name)
+                .format(title, requirement_name)
             )
             if not collect_only:
                 requirement = fetch_requirement(
@@ -462,7 +463,7 @@ def add_test_case(args):
         else:
             click.echo(
                 'Updating test case {0} for requirement {1}.'
-                .format(test.name, requirement_name)
+                .format(title, requirement_name)
             )
             # Ensure that a single match for the Test Case is
             # returned.
@@ -480,18 +481,20 @@ def add_test_case(args):
                     test_case.subtype1 != subtype1,
                     test_case.test_steps != test_steps,
                     test_case.testtype != testtype,
+                    test_case.title != title,
                     test_case.upstream != upstream,
             )):
-                test_case.description = description
                 test_case.caseautomation = auto_status
                 test_case.casecomponent = casecomponent
                 test_case.caseimportance = caseimportance
                 test_case.caselevel = caselevel
                 test_case.caseposneg = caseposneg
+                test_case.description = description
                 test_case.setup = setup
                 test_case.status = status
                 test_case.subtype1 = subtype1
                 test_case.testtype = testtype
+                test_case.title = title
                 test_case.upstream = upstream
                 if test_steps:
                     test_case.test_steps = test_steps
@@ -595,6 +598,7 @@ def cli(context, jobs):
         'subtype1',
         'testtype',
         'upstream',
+        'title',
     ]
     testimony.SETTINGS['minimum_tokens'] = ['id']
 
