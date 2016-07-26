@@ -371,7 +371,7 @@ def add_test_case(args):
         # Fetch the test case id if the @Id tag is present otherwise generate a
         # test_case_id based on the test Python import path
         test_case_id = test.tokens.get('id', generate_test_id(test))
-        test.name = test.tokens.get('title', test_case_id)
+        test.name = test.tokens.get('title', test.name)
         if test.docstring:
             if not type(test.docstring) == unicode:
                 test.docstring = test.docstring.decode('utf8')
