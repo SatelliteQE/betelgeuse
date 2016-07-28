@@ -248,6 +248,33 @@ Examples:
     Use ``--plan-type`` to set the plan type of a test plan to ``release`` or
     ``iteration``. The default value is ``release``.
 
+The test-plan command can also be used to update custom fields in a test plan.
+The ``--custom-fields`` option can be used with a ``key=value`` format or a JSON
+format as explained in `test-run command`_ section.
+
+To create a new test plan and update its ``status``:
+
+.. code-block:: console
+
+    $ betelgeuse test-plan \
+        --name="Iteration 1" \
+        --custom-fields status=inprogress \
+        PROJECT_CLOUD
+    Created new Test Plan Iteration 1 with ID Iteration_1.
+    Test Plan iteration 1 updated with status=inprogress.
+
+The test-plan command is smart enough to check if a test plan with the given
+name already exists before creating it.  For example, to update an already
+existing test plan:
+
+.. code-block:: console
+
+    $ betelgeuse test-plan \
+        --name="Iteration 1" \
+        --custom-fields status=done \
+        PROJECT_CLOUD
+    Found Test Plan Iteration 1.
+    Test Plan iteration 1 updated with status=done.
 
 test-results command
 ++++++++++++++++++++
