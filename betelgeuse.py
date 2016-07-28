@@ -36,6 +36,7 @@ from pylarion.work_item import (
 )
 from pylarion.plan import Plan
 from pylarion.test_run import TestRun
+from testimony.cli import _validate_token_prefix
 
 
 logging.captureWarnings(True)
@@ -576,8 +577,14 @@ def add_test_record(result):
     help='Number of jobs or auto to use the CPU count.',
     type=JOB_NUMBER
 )
+@click.option(
+    '--token-prefix',
+    callback=_validate_token_prefix,
+    default=':',
+    help='Single character to prefix a token.'
+)
 @click.pass_context
-def cli(context, jobs):
+def cli(context, jobs, token_prefix):
     """Betelgeuse CLI command group."""
     context.obj = {}
     context.obj['jobs'] = jobs
@@ -601,6 +608,7 @@ def cli(context, jobs):
         'title',
     ]
     testimony.SETTINGS['minimum_tokens'] = ['id']
+    testimony.SETTINGS['token_prefix'] = token_prefix
 
 
 @cli.command('test-case')
