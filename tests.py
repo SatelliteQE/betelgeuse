@@ -1,3 +1,4 @@
+"""Betelgeuse unit tests."""
 import betelgeuse
 import click
 import mock
@@ -65,10 +66,12 @@ SINGLE_EXPECTEDRESULT = """Single step expected result.
 
 @pytest.fixture
 def cli_runner():
+    """Return a `click`->`CliRunner` object."""
     return CliRunner()
 
 
 def test_add_test_case_create():
+    """Check if test case creation works."""
     obj_cache = {
         'collect_only': False,
         'project': 'PROJECT',
@@ -119,6 +122,7 @@ def test_add_test_case_create():
 
 
 def test_add_test_record():
+    """Check if test record creation works."""
     test_run = mock.MagicMock()
     obj_cache = {
         'test_run': test_run,
@@ -162,6 +166,7 @@ def test_add_test_record():
 
 
 def test_generate_test_steps():
+    """Check if test step generation works."""
     steps = [('Step1', 'Result1'), ('Step2', 'Result2')]
     with mock.patch.multiple(
             'betelgeuse',
@@ -200,12 +205,14 @@ def test_load_custom_fields_json():
 
 
 def test_map_single_step():
+    """Check if mapping single step works."""
     assert map_steps(SINGLE_STEP, SINGLE_EXPECTEDRESULT) == [
         (u'<p>Single step</p>', '<p>Single step expected result.</p>')
     ]
 
 
 def test_map_multiple_steps():
+    """Check if mapping multiple steps works."""
     assert map_steps(MULTIPLE_STEPS, MULTIPLE_EXPECTEDRESULTS) == [
         ('<p>First step</p>', '<p>First step expected result.</p>'),
         ('<p>Second step</p>', '<p>Second step expected result.</p>'),
@@ -214,6 +221,7 @@ def test_map_multiple_steps():
 
 
 def test_map_steps_parse_error():
+    """Check if mapping multiple steps with a parse error works."""
     multiple_steps = MULTIPLE_STEPS.replace('. ', '.', 1)
     assert map_steps(multiple_steps, MULTIPLE_EXPECTEDRESULTS) == [(
         RST_PARSER.parse(multiple_steps),
@@ -222,6 +230,7 @@ def test_map_steps_parse_error():
 
 
 def test_parse_junit():
+    """Check if jUnit parsing works."""
     junit_xml = StringIO(JUNIT_XML)
     assert parse_junit(junit_xml) == [
         {'classname': 'foo1', 'name': 'test_passed', 'status': 'passed'},
@@ -236,12 +245,14 @@ def test_parse_junit():
 
 
 def test_rst_parser():
+    """Check if rst parsing works."""
     docstring = """Line one"""
     generated_html = "<p>Line one</p>\n"
     assert RST_PARSER.parse(docstring) == generated_html
 
 
 def test_get_multiple_steps_diff_items():
+    """Check if parsing multiple steps of different items works."""
     multiple_steps = '\n'.join(MULTIPLE_STEPS.splitlines()[:-1])
     assert map_steps(
         multiple_steps, MULTIPLE_EXPECTEDRESULTS) == [(
@@ -251,11 +262,13 @@ def test_get_multiple_steps_diff_items():
 
 
 def test_invalid_test_run_chars_regex():
+    """Check if invalid test run characters are handled."""
     invalid_test_run_id = '\\/.:*"<>|~!@#$?%^&\'*()+`,='
     assert re.sub(INVALID_CHARS_REGEX, '', invalid_test_run_id) == ''
 
 
 def test_job_param_type():
+    """Check if job paramter type works."""
     job_param = JobNumberParamType()
     with mock.patch('betelgeuse.multiprocessing') as multiprocessing:
         job_param.convert('auto', None, None)
@@ -265,11 +278,13 @@ def test_job_param_type():
 
 
 def test_parse_requirement_name():
+    """Check if parsing requirement name works."""
     assert parse_requirement_name(
         'tests/path/to/test_my_test_module.py') == 'My Test Module'
 
 
 def test_parse_test_results():
+    """Check if parsing test results works."""
     test_results = [
         {'status': u'passed',
          'name': 'test_positive_read',
@@ -310,6 +325,7 @@ def test_parse_test_results():
 
 
 def test_test_case(cli_runner):
+    """Check if test case command works."""
     with cli_runner.isolated_filesystem():
         with open('test_something.py', 'w') as handler:
             handler.write(TEST_MODULE)
@@ -355,6 +371,38 @@ def test_test_plan(cli_runner):
             project_id='PROJECT',
             template_id='release',
         )
+
+
+def test_test_plan_with_custom_fields(cli_runner):
+    """Check if test-plan command runs with custom_fields."""
+    with mock.patch('betelgeuse.Plan') as plan:
+        test_plan = plan()
+        test_plan.status = 'open'
+        # Search will not return anything so new test plan will be created
+        plan.search.return_value = []
+        # Create command returns generated `test_plan` mock object
+        plan.create.return_value = test_plan
+        plan.update.return_value = []
+        result = cli_runner.invoke(
+            cli,
+            [
+                'test-plan',
+                '--name',
+                'Test Plan Name',
+                '--custom-fields',
+                'status=done',
+                'PROJECT'
+            ]
+        )
+        assert result.exit_code == 0
+        plan.create.assert_called_once_with(
+            parent_id=None,
+            plan_id='Test_Plan_Name',
+            plan_name='Test Plan Name',
+            project_id='PROJECT',
+            template_id='release',
+        )
+        assert test_plan.status == 'done'
 
 
 def test_test_plan_with_parent(cli_runner):
@@ -404,6 +452,7 @@ def test_test_plan_with_iteration_type(cli_runner):
 
 
 def test_test_results(cli_runner):
+    """Check if test results command works."""
     with cli_runner.isolated_filesystem():
         with open('results.xml', 'w') as handler:
             handler.write(JUNIT_XML)
@@ -417,6 +466,7 @@ def test_test_results(cli_runner):
 
 
 def test_test_results_default_path(cli_runner):
+    """Check if test results in the default path works."""
     with cli_runner.isolated_filesystem():
         with open('junit-results.xml', 'w') as handler:
             handler.write(JUNIT_XML)
@@ -429,6 +479,7 @@ def test_test_results_default_path(cli_runner):
 
 
 def test_test_run(cli_runner):
+    """Check if test run command works."""
     with cli_runner.isolated_filesystem():
         with open('junit_report.xml', 'w') as handler:
             handler.write(JUNIT_XML)
@@ -457,6 +508,7 @@ def test_test_run(cli_runner):
 
 
 def test_test_run_new_test_run(cli_runner):
+    """Check if test run command works for a new test run."""
     with cli_runner.isolated_filesystem():
         with open('junit_report.xml', 'w') as handler:
             handler.write(JUNIT_XML)
