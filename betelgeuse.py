@@ -20,6 +20,7 @@ import multiprocessing
 import re
 import ssl
 import time
+import traceback
 from collections import Counter
 from xml.dom import minidom
 from xml.etree import ElementTree
@@ -548,7 +549,7 @@ def add_test_record(result):
     except PylarionLibException as err:
         click.echo('Skipping test case {0}.'.format(work_item_id))
         click.echo(err, err=True)
-    except:
+    except Exception as err:
         click.echo(
             'Error when adding test record for "{test_case_id}" with the '
             'following information:\n'
@@ -566,6 +567,7 @@ def add_test_record(result):
                 duration=float(result.get('time', '0'))
             )
         )
+        click.echo(traceback.format_exc(), err=True)
         raise
 
 

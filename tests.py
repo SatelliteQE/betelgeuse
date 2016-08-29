@@ -165,6 +165,49 @@ def test_add_test_record():
             )
 
 
+def test_add_test_record_unexpected_exception():
+    """Check if test record creation reraise unexpected exceptions."""
+    class UnexpectedException(Exception):
+        """Some unexpected exception."""
+        pass
+    test_run = mock.MagicMock()
+    test_run.add_test_record_by_fields.side_effect = UnexpectedException(
+        'UnexpectedException')
+    obj_cache = {
+        'test_run': test_run,
+        'user': 'testuser',
+        'testcases': {
+            'module.NameTestCase.test_name':
+            'caffa7b0-fb9e-430b-903f-3f37fa28e0da',
+        },
+    }
+    with mock.patch.dict('betelgeuse.OBJ_CACHE', obj_cache):
+        with mock.patch.multiple(
+                'betelgeuse',
+                TestCase=mock.DEFAULT,
+                datetime=mock.DEFAULT,
+                testimony=mock.DEFAULT,
+        ) as patches:
+            test_case = mock.MagicMock()
+            patches['TestCase'].query.return_value = [test_case]
+            testimony_test_function = mock.MagicMock()
+            testimony_test_function.testmodule = 'module.py'
+            testimony_test_function.parent_class = 'NameTestCase'
+            testimony_test_function.name = 'test_name'
+            patches['testimony'].get_testcases.return_value = {
+                'module.py': [testimony_test_function],
+            }
+            with pytest.raises(UnexpectedException) as excinfo:
+                add_test_record({
+                    'classname': 'module.NameTestCase',
+                    'message': u'Test failed because it not worked',
+                    'name': 'test_name',
+                    'status': 'failure',
+                    'time': '3.1415',
+                })
+            assert excinfo.value.message == 'UnexpectedException'
+
+
 def test_generate_test_steps():
     """Check if test step generation works."""
     steps = [('Step1', 'Result1'), ('Step2', 'Result2')]
