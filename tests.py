@@ -2,6 +2,7 @@
 import betelgeuse
 import click
 import mock
+import os
 import pytest
 import re
 
@@ -14,6 +15,7 @@ from betelgeuse import (
     add_test_case,
     add_test_record,
     cli,
+    create_xml_property,
     generate_test_steps,
     load_custom_fields,
     map_steps,
@@ -22,10 +24,12 @@ from betelgeuse import (
     parse_test_results,
 )
 from StringIO import StringIO
+from xml.etree import ElementTree
 
 
-JUNIT_XML = """<testsuite tests="4">
-    <testcase classname="foo1" name="test_passed"></testcase>
+JUNIT_XML = """<testsuite tests="4" skips="0">
+    <testcase classname="foo1" name="test_passed" file="source.py" line="8">
+    </testcase>
     <testcase classname="foo2" name="test_skipped">
         <skipped message="Skipped message">...</skipped>
     </testcase>
@@ -276,7 +280,8 @@ def test_parse_junit():
     """Check if jUnit parsing works."""
     junit_xml = StringIO(JUNIT_XML)
     assert parse_junit(junit_xml) == [
-        {'classname': 'foo1', 'name': 'test_passed', 'status': 'passed'},
+        {'classname': 'foo1', 'name': 'test_passed', 'status': 'passed',
+         'line': '8', 'file': 'source.py'},
         {'classname': 'foo2', 'message': 'Skipped message',
          'name': 'test_skipped', 'status': 'skipped'},
         {'classname': 'foo3', 'name': 'test_failure',
@@ -595,3 +600,87 @@ def test_test_run_new_test_run(cli_runner):
             )
             pool.close.assert_called_once_with()
             pool.join.assert_called_once_with()
+
+
+def test_create_xml_property():
+    """Check if create_xml_property creates the expected XML tag."""
+    generated = ElementTree.tostring(create_xml_property('name', 'value'))
+    assert generated == '<property name="name" value="value" />'
+
+
+def test_xml_test_run(cli_runner):
+    """Check if xml test run command works."""
+    with cli_runner.isolated_filesystem():
+        with open('junit_report.xml', 'w') as handler:
+            handler.write(JUNIT_XML)
+        with open('source.py', 'w') as handler:
+            handler.write('')
+        with mock.patch('betelgeuse.testimony') as testimony:
+            testcases = [
+                {'name': 'test_passed', 'testmodule': 'foo1'},
+                {'name': 'test_skipped', 'testmodule': 'foo2'},
+                {'name': 'test_failure', 'testmodule': 'foo3'},
+                {'name': 'test_error', 'testmodule': 'foo4'},
+            ]
+            return_value_testcases = []
+            for test in testcases:
+                t = mock.MagicMock()
+                t.name = test['name']
+                t.testmodule = test['testmodule']
+                t.parent_class = None
+                t.tokens = {'id': str(id(t))}
+                return_value_testcases.append(t)
+
+            testimony.get_testcases.return_value = {
+                'source.py': return_value_testcases,
+            }
+            result = cli_runner.invoke(
+                cli,
+                [
+                    'xml-test-run',
+                    '--dry-run',
+                    '--no-include-skipped',
+                    '--custom-fields', 'field=value',
+                    '--status', 'inprogress',
+                    '--test-run-id', 'test-run-id',
+                    '--test-run-title', 'test-run-title',
+                    'junit_report.xml',
+                    'source.py',
+                    'userid',
+                    'projectid',
+                    'importer.xml'
+                ]
+            )
+            assert result.exit_code == 0
+            testimony.get_testcases.assert_called_once_with(['source.py'])
+            assert os.path.isfile('importer.xml')
+            root = ElementTree.parse('importer.xml').getroot()
+            assert root.tag == 'testsuites'
+            properties = root.find('properties')
+            assert properties
+            properties = [p.attrib for p in properties.findall('property')]
+            expected = [
+                {'name': 'polarion-custom-field', 'value': 'value'},
+                {'name': 'polarion-dry-run', 'value': 'true'},
+                {'name': 'polarion-include-skipped', 'value': 'false'},
+                {'name': 'polarion-lookup-method', 'value': 'custom'},
+                {'name': 'polarion-project-id', 'value': 'projectid'},
+                {'name': 'polarion-set-testrun-finished', 'value': 'false'},
+                {'name': 'polarion-testrun-id', 'value': 'test-run-id'},
+                {'name': 'polarion-testrun-title', 'value': 'test-run-title'},
+                {'name': 'polarion-user-id', 'value': 'userid'},
+            ]
+            for p in properties:
+                assert p in expected
+            testsuite = root.find('testsuite')
+            assert testsuite
+            for index, testcase in enumerate(testsuite.findall('testcase')):
+                properties = testcase.find('properties')
+                assert properties
+                p = properties.findall('property')
+                assert len(p) == 1
+                p = p[0]
+                assert p.attrib == {
+                    'name': 'polarion-testcase-id',
+                    'value': str(id(return_value_testcases[index]))
+                }

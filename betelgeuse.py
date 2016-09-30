@@ -814,3 +814,153 @@ def test_run(
     pool.close()
     pool.join()
     TestRun.session.tx_commit()
+
+
+def create_xml_property(name, value):
+    """Create an XML property element and set its name and value attributes."""
+    element = ElementTree.Element('property')
+    element.set('name', name)
+    element.set('value', value)
+    return element
+
+
+@cli.command('xml-test-run')
+@click.option(
+    '--custom-fields',
+    help='Indicates to the importer which custom fields should be set. '
+    'Expected format is either id=value or JSON format {"id":"value"}. This '
+    'option can be specified multiple times.',
+    multiple=True,
+)
+@click.option(
+    '--dry-run',
+    help='Indicate to the importer to not make any change.',
+    is_flag=True,
+)
+@click.option(
+    '--lookup-method',
+    default='custom',
+    help='Indicates to the importer which lookup method to use. "id" for work '
+    'item id or "custom" for custom id (default).',
+    type=click.Choice([
+        'id',
+        'custom',
+    ])
+)
+@click.option(
+    '--no-include-skipped',
+    help='Specify to make the importer not import skipped tests.',
+    is_flag=True,
+)
+@click.option(
+    '--status',
+    default='finished',
+    help='Define which status the test run should be set: "Finished" (default)'
+    'or "In Progress"',
+    type=click.Choice([
+        'finished',
+        'inprogress',
+    ])
+)
+@click.option(
+    '--test-run-id',
+    default='test-run-{0}'.format(time.time()),
+    help='Test Run ID to be created/updated.',
+)
+@click.option(
+    '--test-run-title',
+    help='Test Run title.',
+)
+@click.argument('junit-path', type=click.Path(exists=True, dir_okay=False))
+@click.argument('source-code-path', type=click.Path(exists=True))
+@click.argument('user')
+@click.argument('project')
+@click.argument('output-path')
+@click.pass_context
+def xml_test_run(
+        context, custom_fields, dry_run, lookup_method, no_include_skipped,
+        status, test_run_id, test_run_title, junit_path, source_code_path,
+        user, project, output_path):
+    """Generate an XML suited to be importer by the test-run importer.
+
+    This will read the jUnit XML at JUNIT_PATH and the source code at
+    SOURCE_CODE_PATH in order to generate a XML file place at OUTPUT_PATH. The
+    generated XML file will be ready to be imported by the XML Test Run
+    Importer.
+
+    The test run will be created on the project ID provided by PROJECT and
+    will be assigned to the Polarion user ID provided by USER.
+
+    Other test run options can be set by the various options this command
+    accepts. Check their help for more information.
+    """
+    test_run_id = re.sub(INVALID_CHARS_REGEX, '', test_run_id)
+    testsuites = ElementTree.Element('testsuites')
+    properties = ElementTree.Element('properties')
+    custom_fields = load_custom_fields(custom_fields)
+    if dry_run:
+        custom_fields['polarion-dry-run'] = 'true'
+    if status == 'in-progress':
+        custom_fields['polarion-set-testrun-finished'] = 'false'
+    if no_include_skipped:
+        custom_fields['polarion-include-skipped'] = 'false'
+    custom_fields['polarion-lookup-method'] = lookup_method
+    custom_fields['polarion-project-id'] = project
+    custom_fields['polarion-testrun-id'] = test_run_id
+    if test_run_title:
+        custom_fields['polarion-testrun-title'] = test_run_title
+    custom_fields['polarion-user-id'] = user
+    properties_names = (
+        'polarion-dry-run',
+        'polarion-include-skipped',
+        'polarion-lookup-method',
+        'polarion-project-id',
+        'polarion-set-testrun-finished',
+        'polarion-testrun-id',
+        'polarion-testrun-title',
+        'polarion-user-id',
+    )
+    for name, value in custom_fields.items():
+        if (not name.startswith('polarion-custom-') and
+                name not in properties_names):
+            name = 'polarion-custom-{}'.format(name)
+        properties.append(create_xml_property(name, value))
+    testsuites.append(properties)
+
+    testcases = {
+        generate_test_id(test): test.tokens.get('id')
+        for test in itertools.chain(
+                *testimony.get_testcases([source_code_path]).values()
+        )
+    }
+    testsuite = ElementTree.parse(junit_path).getroot()
+
+    # XML importer expects skipped instead of the xUnit testsuite skips attr
+    if 'skips' in testsuite.attrib:
+        testsuite.attrib['skipped'] = testsuite.attrib['skips']
+        del testsuite.attrib['skips']
+    for testcase in testsuite.iterfind('testcase'):
+        # XML importer does not accept some xUnit testcase attributes
+        if 'file' in testcase.attrib:
+            del testcase.attrib['file']
+        if 'line' in testcase.attrib:
+            del testcase.attrib['line']
+        junit_test_case_id = '{0}.{1}'.format(
+            testcase.get('classname'), testcase.get('name'))
+        test_case_id = testcases.get(junit_test_case_id)
+        if not test_case_id:
+            click.echo(
+                'Could not find ID information for {}, skipping...'
+                .format(junit_test_case_id)
+            )
+            continue
+        test_properties = ElementTree.Element('properties')
+        element = ElementTree.Element('property')
+        element.set('name', 'polarion-testcase-id')
+        element.set('value', test_case_id)
+        test_properties.append(element)
+        testcase.append(test_properties)
+    testsuites.append(testsuite)
+
+    et = ElementTree.ElementTree(testsuites)
+    et.write(output_path, encoding='utf-8', xml_declaration=True)
