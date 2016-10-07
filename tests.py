@@ -22,6 +22,7 @@ from betelgeuse import (
     parse_junit,
     parse_requirement_name,
     parse_test_results,
+    validate_key_value_option,
 )
 from StringIO import StringIO
 from xml.etree import ElementTree
@@ -641,6 +642,7 @@ def test_xml_test_run(cli_runner):
                     '--dry-run',
                     '--no-include-skipped',
                     '--custom-fields', 'field=value',
+                    '--response-property', 'key=value',
                     '--status', 'inprogress',
                     '--test-run-id', 'test-run-id',
                     '--test-run-title', 'test-run-title',
@@ -665,6 +667,7 @@ def test_xml_test_run(cli_runner):
                 {'name': 'polarion-include-skipped', 'value': 'false'},
                 {'name': 'polarion-lookup-method', 'value': 'custom'},
                 {'name': 'polarion-project-id', 'value': 'projectid'},
+                {'name': 'polarion-response-key', 'value': 'value'},
                 {'name': 'polarion-set-testrun-finished', 'value': 'false'},
                 {'name': 'polarion-testrun-id', 'value': 'test-run-id'},
                 {'name': 'polarion-testrun-title', 'value': 'test-run-title'},
@@ -684,3 +687,19 @@ def test_xml_test_run(cli_runner):
                     'name': 'polarion-testcase-id',
                     'value': str(id(return_value_testcases[index]))
                 }
+
+
+def test_validate_key_value_option():
+    """Check if validate_key_value_option works."""
+    assert validate_key_value_option(
+        None, mock.MagicMock(), 'key=value=') == ('key', 'value=')
+
+
+def test_validate_key_value_option_exception():
+    """Check if validate_key_value_option validates invalid values."""
+    option = mock.MagicMock()
+    option.name = 'option_name'
+    with pytest.raises(click.BadParameter) as excinfo:
+        validate_key_value_option(None, option, 'value')
+    assert (
+        excinfo.value.message == 'option_name needs to be in format key=value')
