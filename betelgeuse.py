@@ -900,7 +900,7 @@ def xml_test_run(
     custom_fields = load_custom_fields(custom_fields)
     if dry_run:
         custom_fields['polarion-dry-run'] = 'true'
-    if status == 'in-progress':
+    if status == 'inprogress':
         custom_fields['polarion-set-testrun-finished'] = 'false'
     if no_include_skipped:
         custom_fields['polarion-include-skipped'] = 'false'
