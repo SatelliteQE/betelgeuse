@@ -83,6 +83,16 @@ class JobNumberParamType(click.ParamType):
 JOB_NUMBER = JobNumberParamType()
 
 
+def validate_key_value_option(ctx, param, value):
+    """Validate an option that expects key=value formated values."""
+    try:
+        key, value = value.split('=', 1)
+        return key, value
+    except ValueError:
+        raise click.BadParameter(
+            '{} needs to be in format key=value'.format(param.name))
+
+
 class RstParser():
     """A restructured text parser."""
 
@@ -853,6 +863,12 @@ def create_xml_property(name, value):
     is_flag=True,
 )
 @click.option(
+    '--response-property',
+    callback=validate_key_value_option,
+    help='When defined, the impoter will mark all responses with the selector.'
+    'The format is "--response-property property_key=property_value".',
+)
+@click.option(
     '--status',
     default='finished',
     help='Define which status the test run should be set: "Finished" (default)'
@@ -879,8 +895,8 @@ def create_xml_property(name, value):
 @click.pass_context
 def xml_test_run(
         context, custom_fields, dry_run, lookup_method, no_include_skipped,
-        status, test_run_id, test_run_title, junit_path, source_code_path,
-        user, project, output_path):
+        response_property, status, test_run_id, test_run_title, junit_path,
+        source_code_path, user, project, output_path):
     """Generate an XML suited to be importer by the test-run importer.
 
     This will read the jUnit XML at JUNIT_PATH and the source code at
@@ -900,10 +916,13 @@ def xml_test_run(
     custom_fields = load_custom_fields(custom_fields)
     if dry_run:
         custom_fields['polarion-dry-run'] = 'true'
-    if status == 'inprogress':
-        custom_fields['polarion-set-testrun-finished'] = 'false'
     if no_include_skipped:
         custom_fields['polarion-include-skipped'] = 'false'
+    if response_property:
+        key = 'polarion-response-' + response_property[0]
+        custom_fields[key] = response_property[1]
+    if status == 'inprogress':
+        custom_fields['polarion-set-testrun-finished'] = 'false'
     custom_fields['polarion-lookup-method'] = lookup_method
     custom_fields['polarion-project-id'] = project
     custom_fields['polarion-testrun-id'] = test_run_id
@@ -922,6 +941,7 @@ def xml_test_run(
     )
     for name, value in custom_fields.items():
         if (not name.startswith('polarion-custom-') and
+                not name.startswith('polarion-response-') and
                 name not in properties_names):
             name = 'polarion-custom-{}'.format(name)
         properties.append(create_xml_property(name, value))
