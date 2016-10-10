@@ -914,15 +914,17 @@ def xml_test_run(
     testsuites = ElementTree.Element('testsuites')
     properties = ElementTree.Element('properties')
     custom_fields = load_custom_fields(custom_fields)
-    if dry_run:
-        custom_fields['polarion-dry-run'] = 'true'
-    if no_include_skipped:
-        custom_fields['polarion-include-skipped'] = 'false'
+    custom_fields.update({
+        'polarion-dry-run':
+            'true' if dry_run else 'false',
+        'polarion-include-skipped':
+            'false' if no_include_skipped else 'true',
+        'polarion-set-testrun-finished':
+            'false' if status == 'inprogress' else 'true',
+    })
     if response_property:
         key = 'polarion-response-' + response_property[0]
         custom_fields[key] = response_property[1]
-    if status == 'inprogress':
-        custom_fields['polarion-set-testrun-finished'] = 'false'
     custom_fields['polarion-lookup-method'] = lookup_method
     custom_fields['polarion-project-id'] = project
     custom_fields['polarion-testrun-id'] = test_run_id
