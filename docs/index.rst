@@ -395,6 +395,54 @@ Example using JSON format:
     not validate them. If an unexpected value is found, the command will fail
     with a stack trace showing the error.
 
+xml-test-run command
+++++++++++++++++++++
+
+The xml-test-run command generates an XML file suited to be imported by the
+Test Run XML importer. It takes:
+
+* A valid xUnit XML file
+* A Python test suite where test case IDs can be found
+
+And generates a resulting XML file with all the information necessary for the
+Test Run XML importer.
+
+The xml-test-run command only requires you to pass:
+
+* The path to the xUnit XML file
+* The path to the Python test suite source code
+* The Polarion user ID
+* The Polarion project ID
+* The output XML file path (it will override if the file already exists)
+
+.. note::
+
+    Even though ``--response-property`` is optional, it is highly recommended
+    to pass it because will be easier to monitor the importer messages (which
+    is not handled by Betelgeuse).
+
+The example below shows how to run xml-test-run command:
+
+.. code-block:: console
+
+    $ betelgeuse xml-test-run \
+        --response-property property_key=property_value \
+        sample_project/results/sample-junit-result.xml \
+        sample_project/tests/ \
+        testuser \
+        PROJECT \
+        output.xml
+
+The xml-test-run command can set test run custom fields.  The
+``--custom-fields`` option can be used with a ``key=value`` format or a JSON
+format as explained in `test-run command`_ section.
+
+.. warning::
+
+    Make sure to pass the the custom field ID (same as in Polarion) and its
+    value. Make sure to pass custom field values as string since they will be
+    converted to XML where there is no type information.
+
 Case Study - A real world sample Test Case
 ```````````````````````````````````````````
 
