@@ -114,7 +114,7 @@ Testimony ``tokens`` to provide a bit more information about the tests.
           def test_positive_create_user(self):
               """Create a new user providing all expected attributes.
 
-              @ID: 1d73b8cc-a754-4637-8bae-d9d2aaf89003
+              :ID: 1d73b8cc-a754-4637-8bae-d9d2aaf89003
               """
               user = entities.User(name='David', age=20)
               self.assertEqual(user.name, 'David')
@@ -168,7 +168,7 @@ steps:
     - If ``$ID`` token is present in the test case, it is used as the test case
       id. Or it is derived automatically based on the test Python import path.
     - Test case object is built based on different supplied test case tokens.
-    - If ``@requirement`` token is present in the test case, it will be used as the
+    - If ``:requirement`` token is present in the test case, it will be used as the
       requirement name. Otherwise it is derived from the test module name. For
       example, if the test module name is ``test_login_example``, then the
       requirement name is ``Login Example``.
@@ -334,7 +334,7 @@ With the above report, Betelgeuse performs the following:
       generated as
       ``sample_project.tests.test_login_example.LoginTestCase.test_login_1``.
 
-- The information obtained from both the steps above are compared and ``@ID``
+- The information obtained from both the steps above are compared and ``:ID``
   token of the test method or function is identified. This id is then queried
   against Polarion for a matching work item id (Polarion test case). Once the
   work item id is identified, Betelgeuse will add the result for this test
@@ -342,7 +342,7 @@ With the above report, Betelgeuse performs the following:
 
 .. warning::
 
-  - If Betelgeuse is not able to find the ``@ID`` token for a test method, it
+  - If Betelgeuse is not able to find the ``:ID`` token for a test method, it
     will default to the Python import path. In our current example, it will be
     ``sample_project.tests.test_login_example.LoginTestCase.test_login_1``.
   - If no result is returned when querying Polarion for a matching test case,
@@ -460,15 +460,15 @@ imported into Polarion. For example:
       def test_positive_create_user(self):
           """Create a new user providing all expected attributes.
 
-          @Assert: User is successfully created
-          @ID: 1d73b8cc-a754-4637-8bae-d9d2aaf89003
-          @Requirement: User Management
-          @CaseAutomation: Automated
-          @CaseLevel: Acceptance
-          @CaseComponent: CLI
-          @TestType: Functional
-          @CaseImportance: High
-          @Upstream: No
+          :Assert: User is successfully created
+          :ID: 1d73b8cc-a754-4637-8bae-d9d2aaf89003
+          :Requirement: User Management
+          :CaseAutomation: Automated
+          :CaseLevel: Acceptance
+          :CaseComponent: CLI
+          :TestType: Functional
+          :CaseImportance: High
+          :Upstream: No
           """
           user = entities.User(name='David', age=20)
           self.assertEqual(user.name, 'David')
@@ -496,13 +496,13 @@ Betelgeuse will inherit these attributes. For example:
 
     """Test cases for entities.
 
-    @Requirement: User Management
-    @CaseAutomation: Automated
-    @CaseLevel: Acceptance
-    @CaseComponent: CLI
-    @TestType: Functional
-    @CaseImportance: High
-    @Upstream: No
+    :Requirement: User Management
+    :CaseAutomation: Automated
+    :CaseLevel: Acceptance
+    :CaseComponent: CLI
+    :TestType: Functional
+    :CaseImportance: High
+    :Upstream: No
     """
 
     import entities
@@ -514,8 +514,8 @@ Betelgeuse will inherit these attributes. For example:
         def test_positive_create_user(self):
             """Create a new user providing all expected attributes.
 
-            @Assert: User is successfully created
-            @ID: 1d73b8cc-a754-4637-8bae-d9d2aaf89003
+            :Assert: User is successfully created
+            :ID: 1d73b8cc-a754-4637-8bae-d9d2aaf89003
             """
             user = entities.User(name='David', age=20)
             self.assertEqual(user.name, 'David')
@@ -525,9 +525,9 @@ Betelgeuse will inherit these attributes. For example:
         def test_positive_create_car(self):
             """Create a new car providing all expected attributes.
 
-            @Assert: Car is successfully created and has no owner
-            @ID: 71b9b000-b978-4a95-b6f8-83c09ed39c01
-            @CaseImportance: Medium
+            :Assert: Car is successfully created and has no owner
+            :ID: 71b9b000-b978-4a95-b6f8-83c09ed39c01
+            :CaseImportance: Medium
             """
             car = entities.Car(make='Honda', year=2016)
             self.assertEqual(car.make, 'Honda')
