@@ -957,16 +957,7 @@ def xml_test_run(
     }
     testsuite = ElementTree.parse(junit_path).getroot()
 
-    # XML importer expects skipped instead of the xUnit testsuite skips attr
-    if 'skips' in testsuite.attrib:
-        testsuite.attrib['skipped'] = testsuite.attrib['skips']
-        del testsuite.attrib['skips']
     for testcase in testsuite.iterfind('testcase'):
-        # XML importer does not accept some xUnit testcase attributes
-        if 'file' in testcase.attrib:
-            del testcase.attrib['file']
-        if 'line' in testcase.attrib:
-            del testcase.attrib['line']
         junit_test_case_id = '{0}.{1}'.format(
             testcase.get('classname'), testcase.get('name'))
         test_case_id = testcases.get(junit_test_case_id)
