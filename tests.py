@@ -691,15 +691,18 @@ def test_xml_test_run(cli_runner):
 
 def test_validate_key_value_option():
     """Check if validate_key_value_option works."""
-    assert validate_key_value_option(
-        None, mock.MagicMock(), 'key=value=') == ('key', 'value=')
+    # None value will be passed when the option is not specified.
+    for value, result in (('key=value=', ('key', 'value=')), (None, None)):
+        assert validate_key_value_option(
+            None, mock.MagicMock(), value) == result
 
 
 def test_validate_key_value_option_exception():
     """Check if validate_key_value_option validates invalid values."""
     option = mock.MagicMock()
     option.name = 'option_name'
-    with pytest.raises(click.BadParameter) as excinfo:
-        validate_key_value_option(None, option, 'value')
-    assert (
-        excinfo.value.message == 'option_name needs to be in format key=value')
+    msg = 'option_name needs to be in format key=value'
+    for value in ('value', ''):
+        with pytest.raises(click.BadParameter) as excinfo:
+            validate_key_value_option(None, option, value)
+        assert excinfo.value.message == msg

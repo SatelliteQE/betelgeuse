@@ -85,6 +85,8 @@ JOB_NUMBER = JobNumberParamType()
 
 def validate_key_value_option(ctx, param, value):
     """Validate an option that expects key=value formated values."""
+    if value is None:
+        return
     try:
         key, value = value.split('=', 1)
         return key, value
