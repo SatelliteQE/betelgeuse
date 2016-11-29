@@ -1,3 +1,21 @@
-<?xml version="1.0" encoding="utf-8"?><testsuite errors="0" failures="0" name="pytest" skips="0" tests="1" time="2012.541"><testcase classname="sample_project.tests.test_login_example.LoginTestCase" file="data_sample/tests/test_login_example.py" line="421" name="test_login_1" time="694.768339396"><system-out>2016-07-03 00:38:47 - robottelo - DEBUG - Started setUpClass
-2016-07-03 00:38:47 - robottelo - DEBUG - Started Test: LoginTestCase/test_login_1
-</system-out></testcase></testsuite>
+<?xml version="1.0" encoding="utf-8"?><testsuite errors="0" failures="1" name="pytest" skips="1" tests="3" time="0.049"><testcase classname="sample_project.tests.test_login_example.LoginTestCase" file="sample_project/tests/test_login_example.py" line="12" name="test_login_1" time="0.000385999679565"></testcase><testcase classname="sample_project.tests.test_login_example.LoginTestCase" file="sample_project/tests/test_login_example.py" line="23" name="test_login_2" time="0.000280141830444"><failure message="AssertionError: Expected failure">self = &lt;test_login_example.LoginTestCase testMethod=test_login_2&gt;
+
+    def test_login_2(self):
+        &quot;&quot;&quot;This is an expected failure
+    
+            :id: 5adbfbe3-9594-46bb-b8b6-d8ef3dbca6b6
+    
+            :steps:
+    
+                1. First Step
+                2. Second Step
+    
+            :expectedresults:
+    
+                1. First Result
+                2. Second Result
+            &quot;&quot;&quot;
+&gt;       self.fail(&apos;Expected failure&apos;)
+E       AssertionError: Expected failure
+
+test_login_example.py:39: AssertionError</failure></testcase><testcase classname="sample_project.tests.test_login_example.LoginTestCase" file="sample_project/tests/test_login_example.py" line="40" name="test_login_3" time="0.000305891036987"><skipped message="Expected skip" type="pytest.skip">sample_project/tests/test_login_example.py:40: &lt;py._xmlgen.raw object at 0x7fdf36f6a110&gt;</skipped></testcase></testsuite>
