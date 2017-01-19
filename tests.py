@@ -645,7 +645,9 @@ def test_xml_test_run(cli_runner):
                     '--response-property', 'key=value',
                     '--status', 'inprogress',
                     '--test-run-id', 'test-run-id',
+                    '--test-run-template-id', 'test-run-template-id',
                     '--test-run-title', 'test-run-title',
+                    '--test-run-type-id', 'test-run-type-id',
                     'junit_report.xml',
                     'source.py',
                     'userid',
@@ -670,7 +672,11 @@ def test_xml_test_run(cli_runner):
                 {'name': 'polarion-response-key', 'value': 'value'},
                 {'name': 'polarion-set-testrun-finished', 'value': 'false'},
                 {'name': 'polarion-testrun-id', 'value': 'test-run-id'},
+                {'name': 'polarion-testrun-template-id',
+                 'value': 'test-run-template-id'},
                 {'name': 'polarion-testrun-title', 'value': 'test-run-title'},
+                {'name': 'polarion-testrun-type-id',
+                 'value': 'test-run-type-id'},
                 {'name': 'polarion-user-id', 'value': 'userid'},
             ]
             for p in properties:

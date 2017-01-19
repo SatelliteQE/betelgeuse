@@ -886,8 +886,16 @@ def create_xml_property(name, value):
     help='Test Run ID to be created/updated.',
 )
 @click.option(
+    '--test-run-template-id',
+    help='Test Run template ID.'
+)
+@click.option(
     '--test-run-title',
     help='Test Run title.',
+)
+@click.option(
+    '--test-run-type-id',
+    help='Test Run type ID.'
 )
 @click.argument('junit-path', type=click.Path(exists=True, dir_okay=False))
 @click.argument('source-code-path', type=click.Path(exists=True))
@@ -897,8 +905,9 @@ def create_xml_property(name, value):
 @click.pass_context
 def xml_test_run(
         context, custom_fields, dry_run, lookup_method, no_include_skipped,
-        response_property, status, test_run_id, test_run_title, junit_path,
-        source_code_path, user, project, output_path):
+        response_property, status, test_run_id, test_run_template_id,
+        test_run_title, test_run_type_id, junit_path, source_code_path, user,
+        project, output_path):
     """Generate an XML suited to be importer by the test-run importer.
 
     This will read the jUnit XML at JUNIT_PATH and the source code at
@@ -930,8 +939,12 @@ def xml_test_run(
     custom_fields['polarion-lookup-method'] = lookup_method
     custom_fields['polarion-project-id'] = project
     custom_fields['polarion-testrun-id'] = test_run_id
+    if test_run_template_id:
+        custom_fields['polarion-testrun-template-id'] = test_run_template_id
     if test_run_title:
         custom_fields['polarion-testrun-title'] = test_run_title
+    if test_run_type_id:
+        custom_fields['polarion-testrun-type-id'] = test_run_type_id
     custom_fields['polarion-user-id'] = user
     properties_names = (
         'polarion-dry-run',
@@ -940,7 +953,9 @@ def xml_test_run(
         'polarion-project-id',
         'polarion-set-testrun-finished',
         'polarion-testrun-id',
+        'polarion-testrun-template-id',
         'polarion-testrun-title',
+        'polarion-testrun-type-id',
         'polarion-user-id',
     )
     for name, value in custom_fields.items():
