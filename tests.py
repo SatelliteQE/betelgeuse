@@ -80,6 +80,7 @@ def test_add_test_case_create():
     obj_cache = {
         'collect_only': False,
         'project': 'PROJECT',
+        'automation_script_format': '{path}@{line_number}'
     }
     with mock.patch.dict('betelgeuse.OBJ_CACHE', obj_cache):
         with mock.patch.multiple(
@@ -90,6 +91,8 @@ def test_add_test_case_create():
             patches['Requirement'].return_value = []
             test = mock.MagicMock()
             test.docstring = 'Test the name feature'
+            test.function_def.lineno = 10
+            test.module_def.path = 'path/to/test_module.py'
             test.name = 'test_name'
             test.parent_class = 'NameTestCase'
             test.testmodule = 'path/to/test_module.py'
@@ -113,6 +116,7 @@ def test_add_test_case_create():
                 'PROJECT',
                 'test_name',
                 '<p>This is sample description</p>\n',
+                automation_script='path/to/test_module.py@10',
                 caseautomation='automated',
                 casecomponent='-',
                 caseimportance='medium',

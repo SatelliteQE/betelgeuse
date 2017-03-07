@@ -389,6 +389,12 @@ def add_test_case(args):
             if not type(test.docstring) == unicode:
                 test.docstring = test.docstring.decode('utf8')
 
+        automation_script = test.tokens.get(
+            'automation_script',
+            OBJ_CACHE['automation_script_format'].format(
+                path=test.module_def.path, line_number=test.function_def.lineno
+            )
+        )
         # Is the test automated? Acceptable values are:
         # automated, manualonly, and notautomated
         auto_status = test.tokens.get(
@@ -450,6 +456,7 @@ def add_test_case(args):
                     project,
                     title,
                     description,
+                    automation_script=automation_script,
                     caseautomation=auto_status,
                     casecomponent=casecomponent,
                     caseimportance=caseimportance,
@@ -484,6 +491,7 @@ def add_test_case(args):
             assert len(results) == 1
             test_case = results[0]
             if not collect_only and any((
+                    test_case.automation_script != automation_script,
                     test_case.caseautomation != auto_status,
                     test_case.casecomponent != casecomponent,
                     test_case.caseimportance != caseimportance,
@@ -498,6 +506,7 @@ def add_test_case(args):
                     test_case.title != title,
                     test_case.upstream != upstream,
             )):
+                test_case.automation_script = automation_script,
                 test_case.caseautomation = auto_status
                 test_case.casecomponent = casecomponent
                 test_case.caseimportance = caseimportance
@@ -604,6 +613,7 @@ def cli(context, jobs, token_prefix):
     context.obj['jobs'] = jobs
     # Configure Testimony tokens
     testimony.SETTINGS['tokens'] = [
+        'automation_script',
         'caseautomation',
         'casecomponent',
         'caseimportance',
@@ -638,11 +648,20 @@ def cli(context, jobs, token_prefix):
           'collected information.'),
     is_flag=True,
 )
+@click.option(
+    '--automation-script-format',
+    help=(r'The format for the automation-script field. The variables {path} '
+          'and {line_number} are available and will be expanded to the test '
+          'case module path and the line number where it\'s defined '
+          'respectively. Default: {path}#{line_number}'),
+    default='{path}#{line_number}',
+)
 @click.argument('project')
 @click.pass_context
-def test_case(context, path, collect_only, project):
+def test_case(context, path, collect_only, automation_script_format, project):
     """Sync test cases with Polarion."""
     testcases = testimony.get_testcases([path])
+    OBJ_CACHE['automation_script_format'] = automation_script_format
     OBJ_CACHE['collect_only'] = collect_only
     OBJ_CACHE['project'] = project
     pool = multiprocessing.Pool(context.obj['jobs'])
