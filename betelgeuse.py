@@ -37,7 +37,6 @@ from pylarion.work_item import (
 )
 from pylarion.plan import Plan
 from pylarion.test_run import TestRun
-from testimony.cli import _validate_token_prefix
 
 
 logging.captureWarnings(True)
@@ -171,17 +170,17 @@ def map_steps(steps, expectedresults):
 
         '''My test
 
-        @steps:
+        :steps:
 
-        1. First step
-        2. Second step
-        3. Third step
+            1. First step
+            2. Second step
+            3. Third step
 
-        @expectedresults:
+        :expectedresults:
 
-        1. First step expected result.
-        2. Second step expected result.
-        3. Third step expected result.
+            1. First step expected result.
+            2. Second step expected result.
+            3. Third step expected result.
         '''
 
     Will produce a return like::
@@ -600,14 +599,8 @@ def add_test_record(result):
     help='Number of jobs or auto to use the CPU count.',
     type=JOB_NUMBER
 )
-@click.option(
-    '--token-prefix',
-    callback=_validate_token_prefix,
-    default=':',
-    help='Single character to prefix a token.'
-)
 @click.pass_context
-def cli(context, jobs, token_prefix):
+def cli(context, jobs):
     """Betelgeuse CLI command group."""
     context.obj = {}
     context.obj['jobs'] = jobs
@@ -632,7 +625,6 @@ def cli(context, jobs, token_prefix):
         'title',
     ]
     testimony.SETTINGS['minimum_tokens'] = ['id']
-    testimony.SETTINGS['token_prefix'] = token_prefix
 
 
 @cli.command('test-case')
