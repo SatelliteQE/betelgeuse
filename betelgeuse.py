@@ -437,10 +437,11 @@ def add_test_case(args):
             results = TestCase.query(
                 test_case_id,
                 fields=[
+                    'approvals',
                     'caseautomation',
                     'caseposneg',
                     'description',
-                    'work_item_id'
+                    'work_item_id',
                 ]
             )
         requirement_name = test.tokens.get(
@@ -467,6 +468,11 @@ def add_test_case(args):
                     testtype=testtype,
                     upstream=upstream,
                 )
+                approvers = test_case.get_allowed_approvers()
+                if len(approvers) > 0:
+                    approvee = approvers.pop().user_id
+                    test_case.add_approvee(approvee)
+                    test_case.edit_approval(approvee, 'approved')
                 test_case.status = status
                 if test_steps:
                     test_case.test_steps = test_steps
@@ -490,6 +496,7 @@ def add_test_case(args):
             assert len(results) == 1
             test_case = results[0]
             if not collect_only and any((
+                    len(test_case.approvals) == 0,
                     test_case.automation_script != automation_script,
                     test_case.caseautomation != auto_status,
                     test_case.casecomponent != casecomponent,
@@ -505,6 +512,12 @@ def add_test_case(args):
                     test_case.title != title,
                     test_case.upstream != upstream,
             )):
+                if len(test_case.approvals) == 0:
+                    approvers = test_case.get_allowed_approvers()
+                    if len(approvers) > 0:
+                        approvee = approvers.pop().user_id
+                        test_case.add_approvee(approvee)
+                        test_case.edit_approval(approvee, 'approved')
                 test_case.automation_script = automation_script,
                 test_case.caseautomation = auto_status
                 test_case.casecomponent = casecomponent

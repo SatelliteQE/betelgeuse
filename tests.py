@@ -106,6 +106,7 @@ def test_add_test_case_create():
             patches['TestCase'].query.assert_called_once_with(
                 'path.to.test_module.NameTestCase.test_name',
                 fields=[
+                    'approvals',
                     'caseautomation',
                     'caseposneg',
                     'description',
