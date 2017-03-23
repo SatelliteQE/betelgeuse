@@ -114,7 +114,7 @@ Testimony ``tokens`` to provide a bit more information about the tests.
           def test_positive_create_user(self):
               """Create a new user providing all expected attributes.
 
-              :ID: 1d73b8cc-a754-4637-8bae-d9d2aaf89003
+              :id: 1d73b8cc-a754-4637-8bae-d9d2aaf89003
               """
               user = entities.User(name='David', age=20)
               self.assertEqual(user.name, 'David')
@@ -460,15 +460,15 @@ imported into Polarion. For example:
       def test_positive_create_user(self):
           """Create a new user providing all expected attributes.
 
-          :Assert: User is successfully created
-          :ID: 1d73b8cc-a754-4637-8bae-d9d2aaf89003
-          :Requirement: User Management
-          :CaseAutomation: Automated
-          :CaseLevel: Acceptance
-          :CaseComponent: CLI
-          :TestType: Functional
-          :CaseImportance: High
-          :Upstream: No
+          :id: 1d73b8cc-a754-4637-8bae-d9d2aaf89003
+          :expectedresults: User is successfully created
+          :requirement: User Management
+          :caseautomation: Automated
+          :caselevel: Acceptance
+          :casecomponent: CLI
+          :testtype: Functional
+          :caseimportance: High
+          :upstream: No
           """
           user = entities.User(name='David', age=20)
           self.assertEqual(user.name, 'David')
@@ -496,13 +496,13 @@ Betelgeuse will inherit these attributes. For example:
 
     """Test cases for entities.
 
-    :Requirement: User Management
-    :CaseAutomation: Automated
-    :CaseLevel: Acceptance
-    :CaseComponent: CLI
-    :TestType: Functional
-    :CaseImportance: High
-    :Upstream: No
+    :caseautomation: Automated
+    :casecomponent: CLI
+    :caseimportance: High
+    :caselevel: Acceptance
+    :requirement: User Management
+    :testtype: functional
+    :upstream: no
     """
 
     import entities
@@ -514,8 +514,8 @@ Betelgeuse will inherit these attributes. For example:
         def test_positive_create_user(self):
             """Create a new user providing all expected attributes.
 
-            :Assert: User is successfully created
-            :ID: 1d73b8cc-a754-4637-8bae-d9d2aaf89003
+            :id: 1d73b8cc-a754-4637-8bae-d9d2aaf89003
+            :expectedresults: User is successfully created
             """
             user = entities.User(name='David', age=20)
             self.assertEqual(user.name, 'David')
@@ -525,9 +525,9 @@ Betelgeuse will inherit these attributes. For example:
         def test_positive_create_car(self):
             """Create a new car providing all expected attributes.
 
-            :Assert: Car is successfully created and has no owner
-            :ID: 71b9b000-b978-4a95-b6f8-83c09ed39c01
-            :CaseImportance: Medium
+            :id: 71b9b000-b978-4a95-b6f8-83c09ed39c01
+            :caseimportance: Medium
+            :expectedresults: Car is successfully created and has no owner
             """
             car = entities.Car(make='Honda', year=2016)
             self.assertEqual(car.make, 'Honda')
