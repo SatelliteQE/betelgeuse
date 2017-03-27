@@ -518,7 +518,7 @@ def add_test_case(args):
                         approvee = approvers.pop().user_id
                         test_case.add_approvee(approvee)
                         test_case.edit_approval(approvee, 'approved')
-                test_case.automation_script = automation_script,
+                test_case.automation_script = automation_script
                 test_case.caseautomation = auto_status
                 test_case.casecomponent = casecomponent
                 test_case.caseimportance = caseimportance
