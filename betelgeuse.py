@@ -367,6 +367,18 @@ def fetch_requirement(query, project, collect_only=False):
     return requirement
 
 
+def approve_test_case(test_case):
+    """Approve a test case if the running user is allowed to do so."""
+    approvers = [
+        approver.user_id
+        for approver in test_case.get_allowed_approvers()
+    ]
+    if test_case.logged_in_user_id in approvers:
+        approvee = test_case.logged_in_user_id
+        test_case.add_approvee(approvee)
+        test_case.edit_approval(approvee, 'approved')
+
+
 def add_test_case(args):
     """Task that creates or updates Test Cases and manages their Requirement.
 
@@ -468,11 +480,7 @@ def add_test_case(args):
                     testtype=testtype,
                     upstream=upstream,
                 )
-                approvers = test_case.get_allowed_approvers()
-                if len(approvers) > 0:
-                    approvee = approvers.pop().user_id
-                    test_case.add_approvee(approvee)
-                    test_case.edit_approval(approvee, 'approved')
+                approve_test_case(test_case)
                 test_case.status = status
                 if test_steps:
                     test_case.test_steps = test_steps
@@ -513,11 +521,7 @@ def add_test_case(args):
                     test_case.upstream != upstream,
             )):
                 if len(test_case.approvals) == 0:
-                    approvers = test_case.get_allowed_approvers()
-                    if len(approvers) > 0:
-                        approvee = approvers.pop().user_id
-                        test_case.add_approvee(approvee)
-                        test_case.edit_approval(approvee, 'approved')
+                    approve_test_case(test_case)
                 test_case.automation_script = automation_script
                 test_case.caseautomation = auto_status
                 test_case.casecomponent = casecomponent
