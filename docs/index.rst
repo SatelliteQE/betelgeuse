@@ -29,6 +29,11 @@ create/update the following entities in Polarion:
 * test case
 * test run
 
+If you want Betelgeuse to automatically approve the test cases, then make sure
+the user has permission to approve them. Betelgeuse will check if the user is
+on the allowed approvers list, and, if that is the case, will set the approvee
+and approve the test case.
+
 Quick Start
 ```````````
 
