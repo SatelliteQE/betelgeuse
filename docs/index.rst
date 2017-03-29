@@ -16,13 +16,13 @@ tools to interact with Polarion. Possible interactions are:
 * Automatic creation/update of Test Runs based on a jUnit XML file.
 
 Betelgeuse uses `Testimony <https://pypi.python.org/pypi/testimony>`_ and
-Pylarion projects to parse test cases and communicate with polarion
+Pylarion projects to parse test cases and communicate with Polarion
 respectively.
 
 Prerequisites
 `````````````
 
-Login to polarion in a browser to check if the login user has permissions to
+Login to Polarion in a browser to check if the login user has permissions to
 create/update the following entities in Polarion:
 
 * requirement
@@ -37,7 +37,7 @@ and approve the test case.
 Quick Start
 ```````````
 
-1. Betelgeuse uses Pylarion to interact with polarion. Install Pylarion from its
+1. Betelgeuse uses Pylarion to interact with Polarion. Install Pylarion from its
    source.
 
    .. note::
@@ -164,7 +164,7 @@ help command
 test-case command
 +++++++++++++++++
 
-Creates/Updates test cases in polarion. This command performs the following
+Creates/Updates test cases in Polarion. This command performs the following
 steps:
 
 - Testimony is called to parse the test cases.
@@ -194,7 +194,7 @@ steps:
 
 .. note::
 
-  * ``PROJECT_CLOUD`` is the polarion project id and not the project name. This
+  * ``PROJECT_CLOUD`` is the Polarion project id and not the project name. This
     can be found in Polarion -> Settings (icon) -> Administration -> ID.
   * ``path`` is the path of the folder which has the test cases source code.
 
@@ -296,7 +296,7 @@ Gives a nice summary of test cases/results in the given jUnit XML file.
 test-run command
 ++++++++++++++++
 
-Creates/Updates a test run in polarion using the information in the given jUnit
+Creates/Updates a test run in Polarion using the information in the given jUnit
 XML file. This command performs the following steps:
 
 - Parses the jUnit XML file to read all the test cases and their run statuses.
