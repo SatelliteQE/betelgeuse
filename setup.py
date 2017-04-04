@@ -15,7 +15,7 @@ setup(
     author_email='erezende@redhat.com, omaciel@redhat.com',
     version=VERSION,
     packages=find_packages(include=['betelgeuse', 'betelgeuse.*']),
-    install_requires=['click', 'docutils', 'testimony>=1.3.0'],
+    install_requires=['click', 'docutils'],
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
         'Development Status :: 4 - Beta',

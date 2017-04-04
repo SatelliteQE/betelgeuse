@@ -9,7 +9,6 @@ import re
 from click.testing import CliRunner
 from betelgeuse import (
     INVALID_CHARS_REGEX,
-    RST_PARSER,
     JobNumberParamType,
     PylarionLibException,
     add_test_case,
@@ -52,21 +51,23 @@ def test_something_else():
 '''
 
 
-MULTIPLE_STEPS = """1. First step
-2. Second step
-3. Third step
+MULTIPLE_STEPS = """<ol>
+  <li><p>First step</p></li>
+  <li><p>Second step</p></li>
+  <li><p>Third step</p></li>
+</ol>
 """
 
-MULTIPLE_EXPECTEDRESULTS = """1. First step expected result.
-2. Second step expected result.
-3. Third step expected result.
+MULTIPLE_EXPECTEDRESULTS = """<ol>
+  <li><p>First step expected result.</p></li>
+  <li><p>Second step expected result.</p></li>
+  <li><p>Third step expected result.</p></li>
+</ol>
 """
 
-SINGLE_STEP = """Single step
-"""
+SINGLE_STEP = """<p>Single step</p>"""
 
-SINGLE_EXPECTEDRESULT = """Single step expected result.
-"""
+SINGLE_EXPECTEDRESULT = """<p>Single step expected result.</p>"""
 
 
 @pytest.fixture
@@ -96,8 +97,8 @@ def test_add_test_case_create():
             test.name = 'test_name'
             test.parent_class = 'NameTestCase'
             test.testmodule = 'path/to/test_module.py'
-            test.tokens = {}
-            test.tokens['description'] = 'This is sample description'
+            test.fields = {}
+            test.fields['description'] = '<p>This is sample description</p>\n'
             add_test_case(('path/to/test_module.py', [test]))
             patches['Requirement'].query.assert_called_once_with(
                 'Module', fields=['title', 'work_item_id'])
@@ -146,17 +147,17 @@ def test_add_test_record():
         with mock.patch.multiple(
                 'betelgeuse',
                 TestCase=mock.DEFAULT,
+                collector=mock.DEFAULT,
                 datetime=mock.DEFAULT,
-                testimony=mock.DEFAULT,
         ) as patches:
             test_case = mock.MagicMock()
             patches['TestCase'].query.return_value = [test_case]
-            testimony_test_function = mock.MagicMock()
-            testimony_test_function.testmodule = 'module.py'
-            testimony_test_function.parent_class = 'NameTestCase'
-            testimony_test_function.name = 'test_name'
-            patches['testimony'].get_testcases.return_value = {
-                'module.py': [testimony_test_function],
+            test_function = mock.MagicMock()
+            test_function.testmodule = 'module.py'
+            test_function.parent_class = 'NameTestCase'
+            test_function.name = 'test_name'
+            patches['collector'].get_tests.return_value = {
+                'module.py': [test_function],
             }
             add_test_record({
                 'classname': 'module.NameTestCase',
@@ -195,17 +196,17 @@ def test_add_test_record_unexpected_exception():
         with mock.patch.multiple(
                 'betelgeuse',
                 TestCase=mock.DEFAULT,
+                collector=mock.DEFAULT,
                 datetime=mock.DEFAULT,
-                testimony=mock.DEFAULT,
         ) as patches:
             test_case = mock.MagicMock()
             patches['TestCase'].query.return_value = [test_case]
-            testimony_test_function = mock.MagicMock()
-            testimony_test_function.testmodule = 'module.py'
-            testimony_test_function.parent_class = 'NameTestCase'
-            testimony_test_function.name = 'test_name'
-            patches['testimony'].get_testcases.return_value = {
-                'module.py': [testimony_test_function],
+            test_function = mock.MagicMock()
+            test_function.testmodule = 'module.py'
+            test_function.parent_class = 'NameTestCase'
+            test_function.name = 'test_name'
+            patches['collector'].get_tests.return_value = {
+                'module.py': [test_function],
             }
             with pytest.raises(UnexpectedException) as excinfo:
                 add_test_record({
@@ -259,9 +260,8 @@ def test_load_custom_fields_json():
 
 def test_map_single_step():
     """Check if mapping single step works."""
-    assert map_steps(SINGLE_STEP, SINGLE_EXPECTEDRESULT) == [
-        (u'<p>Single step</p>', '<p>Single step expected result.</p>')
-    ]
+    mapped = [(SINGLE_STEP, SINGLE_EXPECTEDRESULT)]
+    assert map_steps(SINGLE_STEP, SINGLE_EXPECTEDRESULT) == mapped
 
 
 def test_map_multiple_steps():
@@ -273,13 +273,15 @@ def test_map_multiple_steps():
     ]
 
 
-def test_map_steps_parse_error():
-    """Check if mapping multiple steps with a parse error works."""
-    multiple_steps = MULTIPLE_STEPS.replace('. ', '.', 1)
-    assert map_steps(multiple_steps, MULTIPLE_EXPECTEDRESULTS) == [(
-        RST_PARSER.parse(multiple_steps),
-        RST_PARSER.parse(MULTIPLE_EXPECTEDRESULTS),
-    )]
+def test_get_multiple_steps_diff_items():
+    """Check if parsing multiple steps of different items works."""
+    multiple_steps = '\n'.join(MULTIPLE_STEPS.splitlines()[:-2] + ['</ol>\n'])
+    assert map_steps(
+        multiple_steps, MULTIPLE_EXPECTEDRESULTS) == [(
+            '<ol>\n  <li><p>First step</p></li>\n  '
+            '<li><p>Second step</p></li>\n</ol>\n',
+            MULTIPLE_EXPECTEDRESULTS
+        )]
 
 
 def test_parse_junit():
@@ -296,23 +298,6 @@ def test_parse_junit():
          'status': 'error', 'type': 'ExceptionName'}
     ]
     junit_xml.close()
-
-
-def test_rst_parser():
-    """Check if rst parsing works."""
-    docstring = """Line one"""
-    generated_html = "<p>Line one</p>\n"
-    assert RST_PARSER.parse(docstring) == generated_html
-
-
-def test_get_multiple_steps_diff_items():
-    """Check if parsing multiple steps of different items works."""
-    multiple_steps = '\n'.join(MULTIPLE_STEPS.splitlines()[:-1])
-    assert map_steps(
-        multiple_steps, MULTIPLE_EXPECTEDRESULTS) == [(
-            RST_PARSER.parse(multiple_steps),
-            RST_PARSER.parse(MULTIPLE_EXPECTEDRESULTS),
-        )]
 
 
 def test_invalid_test_run_chars_regex():
@@ -386,8 +371,8 @@ def test_test_case(cli_runner):
         with mock.patch.multiple(
                 'betelgeuse',
                 TestCase=mock.DEFAULT,
+                collector=mock.DEFAULT,
                 multiprocessing=mock.DEFAULT,
-                testimony=mock.DEFAULT
         ) as patches:
             pool = mock.MagicMock()
             patches['multiprocessing'].Pool.return_value = pool
@@ -399,7 +384,7 @@ def test_test_case(cli_runner):
             assert result.exit_code == 0
             pool.map.assert_called_once_with(
                 betelgeuse.add_test_case,
-                patches['testimony'].get_testcases().items()
+                patches['collector'].collect_tests().items()
             )
             pool.close.assert_called_once_with()
             pool.join.assert_called_once_with()
@@ -540,8 +525,8 @@ def test_test_run(cli_runner):
         with mock.patch.multiple(
                 'betelgeuse',
                 TestRun=mock.DEFAULT,
+                collector=mock.DEFAULT,
                 multiprocessing=mock.DEFAULT,
-                testimony=mock.DEFAULT
         ) as patches:
             pool = mock.MagicMock()
             patches['multiprocessing'].Pool.return_value = pool
@@ -569,8 +554,8 @@ def test_test_run_new_test_run(cli_runner):
         with mock.patch.multiple(
                 'betelgeuse',
                 TestRun=mock.DEFAULT,
+                collector=mock.DEFAULT,
                 multiprocessing=mock.DEFAULT,
-                testimony=mock.DEFAULT
         ) as patches:
             pool = mock.MagicMock()
             patches['multiprocessing'].Pool.return_value = pool
@@ -621,7 +606,7 @@ def test_xml_test_run(cli_runner):
             handler.write(JUNIT_XML)
         with open('source.py', 'w') as handler:
             handler.write('')
-        with mock.patch('betelgeuse.testimony') as testimony:
+        with mock.patch('betelgeuse.collector') as collector:
             testcases = [
                 {'name': 'test_passed', 'testmodule': 'foo1'},
                 {'name': 'test_skipped', 'testmodule': 'foo2'},
@@ -634,10 +619,10 @@ def test_xml_test_run(cli_runner):
                 t.name = test['name']
                 t.testmodule = test['testmodule']
                 t.parent_class = None
-                t.tokens = {'id': str(id(t))}
+                t.fields = {'id': str(id(t))}
                 return_value_testcases.append(t)
 
-            testimony.get_testcases.return_value = {
+            collector.collect_tests.return_value = {
                 'source.py': return_value_testcases,
             }
             result = cli_runner.invoke(
@@ -661,7 +646,7 @@ def test_xml_test_run(cli_runner):
                 ]
             )
             assert result.exit_code == 0
-            testimony.get_testcases.assert_called_once_with(['source.py'])
+            collector.collect_tests.assert_called_once_with('source.py')
             assert os.path.isfile('importer.xml')
             root = ElementTree.parse('importer.xml').getroot()
             assert root.tag == 'testsuites'

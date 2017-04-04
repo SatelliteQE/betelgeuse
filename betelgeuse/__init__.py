@@ -10,9 +10,6 @@ Polarion. Possible interactions:
 * Creation of Test Runs based on a jUnit XML file.
 """
 import datetime
-import docutils
-import docutils.core
-import docutils.io
 import itertools
 import json
 import logging
@@ -27,7 +24,6 @@ from xml.etree import ElementTree
 from xml.parsers.expat import ExpatError
 
 import click
-import testimony
 from pylarion.exceptions import PylarionLibException
 from pylarion.work_item import (
     Requirement,
@@ -37,6 +33,8 @@ from pylarion.work_item import (
 )
 from pylarion.plan import Plan
 from pylarion.test_run import TestRun
+
+from betelgeuse import collector, parser
 
 
 logging.captureWarnings(True)
@@ -94,42 +92,13 @@ def validate_key_value_option(ctx, param, value):
             '{} needs to be in format key=value'.format(param.name))
 
 
-class RstParser():
-    """A restructured text parser."""
-
-    def _get_publisher(self, source):
-        """Get docutils publisher."""
-        extra_params = {
-            'syntax_highlight': 'short',
-            'input_encoding': 'utf-8',
-            'embed_stylesheet': False,
-        }
-        pub = docutils.core.Publisher(
-            source_class=docutils.io.StringInput,
-            destination_class=docutils.io.StringOutput
-        )
-        pub.set_components('standalone', 'restructuredtext', 'html')
-        pub.process_programmatic_settings(None, extra_params, None)
-        pub.set_source(source=source)
-        pub.publish(enable_exit_status=True)
-        return pub
-
-    def parse(self, source):
-        """Parse restructured text."""
-        pub = self._get_publisher(source)
-        return pub.writer.parts.get('body')
-
-
-RST_PARSER = RstParser()
-
-
 def generate_test_id(test):
     """Generate the test_case_id as the Python import path.
 
     It could be either ``module.test_name`` or ``module.ClassName.test_name``
     if the test methods is defined within a class.
 
-    :param test: a Testimony TestFunction instance.
+    :param test: a ``collector.TestFunction`` instance.
     """
     test_case_id_parts = [
         test.testmodule.replace('/', '.').replace('.py', ''),
@@ -196,14 +165,8 @@ def map_steps(steps, expectedresults):
     :param expectedresults: unparsed string expected to contain either a
         list of expectedresults or a single paragraph.
     """
-    steps = RST_PARSER.parse(steps)
-    expectedresults = RST_PARSER.parse(expectedresults)
     try:
-        if not type(steps) == str:
-            steps = steps.encode('utf-8')
         parsed_steps = minidom.parseString(steps)
-        if not type(expectedresults) == str:
-            expectedresults = expectedresults.encode('utf-8')
         parsed_expectedresults = minidom.parseString(expectedresults)
     except ExpatError:
         return [(steps, expectedresults)]
@@ -215,11 +178,11 @@ def map_steps(steps, expectedresults):
     elif (parsed_steps.firstChild.tagName == 'ol' and
             parsed_expectedresults.firstChild.tagName == 'ol'):
         parsed_steps = [
-            u'<p>{}</p>'.format(element.firstChild.toxml().decode('utf-8'))
+            element.firstChild.toxml().decode('utf-8')
             for element in parsed_steps.getElementsByTagName('li')
         ]
         parsed_expectedresults = [
-            u'<p>{}</p>'.format(element.firstChild.toxml().decode('utf-8'))
+            element.firstChild.toxml().decode('utf-8')
             for element in parsed_expectedresults.getElementsByTagName('li')
         ]
     else:
@@ -395,12 +358,12 @@ def add_test_case(args):
     for test in tests:
         # Fetch the test case id if the @Id tag is present otherwise generate a
         # test_case_id based on the test Python import path
-        test_case_id = test.tokens.get('id', generate_test_id(test))
+        test_case_id = test.fields.get('id', generate_test_id(test))
         if test.docstring:
             if not type(test.docstring) == unicode:
                 test.docstring = test.docstring.decode('utf8')
 
-        automation_script = test.tokens.get(
+        automation_script = test.fields.get(
             'automation_script',
             OBJ_CACHE['automation_script_format'].format(
                 path=test.module_def.path, line_number=test.function_def.lineno
@@ -408,35 +371,36 @@ def add_test_case(args):
         )
         # Is the test automated? Acceptable values are:
         # automated, manualonly, and notautomated
-        auto_status = test.tokens.get(
+        auto_status = test.fields.get(
             'caseautomation',
-            'notautomated' if test.tokens.get('status') else 'automated'
+            'notautomated' if test.fields.get('status') else 'automated'
         ).lower()
-        caseposneg = test.tokens.get(
+        caseposneg = test.fields.get(
             'caseposneg',
             'negative' if 'negative' in test.name else 'positive'
         ).lower()
-        subtype1 = test.tokens.get(
+        subtype1 = test.fields.get(
             'subtype1',
             '-'
         ).lower()
-        casecomponent = test.tokens.get('casecomponent', '-').lower()
-        caseimportance = test.tokens.get(
+        casecomponent = test.fields.get('casecomponent', '-').lower()
+        caseimportance = test.fields.get(
             'caseimportance', 'medium').lower()
-        caselevel = test.tokens.get('caselevel', 'component').lower()
-        description = test.tokens.get(
-            'description', test.docstring if test.docstring else '')
-        description = RST_PARSER.parse(description)
-        setup = test.tokens.get('setup')
-        status = test.tokens.get('status', 'approved').lower()
-        testtype = test.tokens.get(
+        caselevel = test.fields.get('caselevel', 'component').lower()
+        description = test.fields.get('description', parser.parse_rst(
+            test.docstring,
+            parser.TableFieldListTranslator,
+        ))
+        setup = test.fields.get('setup')
+        status = test.fields.get('status', 'approved').lower()
+        testtype = test.fields.get(
             'testtype',
             'functional'
         ).lower()
-        title = test.tokens.get('title', test.name)
-        upstream = test.tokens.get('upstream', 'no').lower()
-        steps = test.tokens.get('steps')
-        expectedresults = test.tokens.get('expectedresults')
+        title = test.fields.get('title', test.name)
+        upstream = test.fields.get('upstream', 'no').lower()
+        steps = test.fields.get('steps')
+        expectedresults = test.fields.get('expectedresults')
 
         if steps and expectedresults:
             test_steps = generate_test_steps(
@@ -456,7 +420,7 @@ def add_test_case(args):
                     'work_item_id',
                 ]
             )
-        requirement_name = test.tokens.get(
+        requirement_name = test.fields.get(
             'requirement', parse_requirement_name(path))
         if len(results) == 0:
             click.echo(
@@ -621,27 +585,6 @@ def cli(context, jobs):
     """Betelgeuse CLI command group."""
     context.obj = {}
     context.obj['jobs'] = jobs
-    # Configure Testimony tokens
-    testimony.SETTINGS['tokens'] = [
-        'automation_script',
-        'caseautomation',
-        'casecomponent',
-        'caseimportance',
-        'caselevel',
-        'caseposneg',
-        'assert',
-        'description',
-        'expectedresults',
-        'id',
-        'requirement',
-        'setup',
-        'steps',
-        'subtype1',
-        'testtype',
-        'upstream',
-        'title',
-    ]
-    testimony.SETTINGS['minimum_tokens'] = ['id']
 
 
 @cli.command('test-case')
@@ -669,7 +612,7 @@ def cli(context, jobs):
 @click.pass_context
 def test_case(context, path, collect_only, automation_script_format, project):
     """Sync test cases with Polarion."""
-    testcases = testimony.get_testcases([path])
+    testcases = collector.collect_tests(path)
     OBJ_CACHE['automation_script_format'] = automation_script_format
     OBJ_CACHE['collect_only'] = collect_only
     OBJ_CACHE['project'] = project
@@ -813,9 +756,9 @@ def test_run(
     custom_fields = load_custom_fields(custom_fields)
     test_run_id = re.sub(INVALID_CHARS_REGEX, '', test_run_id)
     testcases = {
-        generate_test_id(test): test.tokens.get('id')
+        generate_test_id(test): test.fields.get('id')
         for test in itertools.chain(
-                *testimony.get_testcases([source_code_path]).values()
+                *collector.collect_tests(source_code_path).values()
         )
     }
     results = parse_junit(path)
@@ -870,43 +813,41 @@ def create_xml_testcase(testcase):
     The element will be in the format to be used by the XML test case importer.
     """
     element = ElementTree.Element('testcase')
-    element.set('id', testcase.tokens.pop('id', generate_test_id(testcase)))
+    element.set('id', testcase.fields.pop('id', generate_test_id(testcase)))
     # TODO: set other attributes assignee-id, due-date, initial-estimate
     if testcase.docstring:
         if not type(testcase.docstring) == unicode:
             testcase.docstring = testcase.docstring.decode('utf8')
 
-    if 'test' in testcase.tokens:
-        testcase.tokens['title'] = testcase.tokens.pop(
-            'test', testcase.tokens.get('title'))
-    if 'assert' in testcase.tokens:
-        testcase.tokens['expectedresults'] = testcase.tokens.pop(
-            'assert', testcase.tokens.get('expectedresults'))
-    if 'title' in testcase.tokens:
+    if 'test' in testcase.fields:
+        testcase.fields['title'] = testcase.fields.pop(
+            'test', testcase.fields.get('title'))
+    if 'assert' in testcase.fields:
+        testcase.fields['expectedresults'] = testcase.fields.pop(
+            'assert', testcase.fields.get('expectedresults'))
+    if 'title' in testcase.fields:
         title = ElementTree.Element('title')
-        title.text = testcase.tokens.pop('title')
+        title.text = testcase.fields.pop('title')
         element.append(title)
-    if 'description' in testcase.tokens:
-        testcase.tokens['description'] = testcase.tokens.get(
+    if 'description' in testcase.fields:
+        testcase.fields['description'] = testcase.fields.get(
             'description',
-            testcase.docstring if testcase.docstring else ''
+            parser.parse_rst(testcase.docstring)
         )
-        testcase.tokens['description'] = RST_PARSER.parse(
-            testcase.tokens['description'])
         description = ElementTree.Element('description')
-        description.text = testcase.tokens.pop('description')
+        description.text = testcase.fields.pop('description')
         element.append(description)
 
     linked_work_items = ElementTree.Element('linked-work-items')
-    if 'requirement' in testcase.tokens:
+    if 'requirement' in testcase.fields:
         linked_work_item = ElementTree.Element('linked-work-item')
-        linked_work_item.set('workitem-id', testcase.tokens.pop('requirement'))
+        linked_work_item.set('workitem-id', testcase.fields.pop('requirement'))
         linked_work_item.set('role-id', 'verifies')
         linked_work_items.append(linked_work_item)
     element.append(linked_work_items)
 
-    steps = testcase.tokens.pop('steps', None)
-    expectedresults = testcase.tokens.pop('expectedresults', None)
+    steps = testcase.fields.pop('steps', None)
+    expectedresults = testcase.fields.pop('expectedresults', None)
 
     if steps and expectedresults:
         test_steps = ElementTree.Element('test-steps')
@@ -925,36 +866,36 @@ def create_xml_testcase(testcase):
 
     custom_fields = ElementTree.Element('custom-fields')
 
-    testcase.tokens['caseautomation'] = testcase.tokens.pop(
+    testcase.fields['caseautomation'] = testcase.fields.pop(
         'caseautomation',
-        'notautomated' if testcase.tokens.pop('status', None) else 'automated'
+        'notautomated' if testcase.fields.pop('status', None) else 'automated'
     ).lower()
-    testcase.tokens['caseposneg'] = testcase.tokens.pop(
+    testcase.fields['caseposneg'] = testcase.fields.pop(
         'caseposneg',
         'negative' if 'negative' in testcase.name else 'positive'
     ).lower()
-    testcase.tokens['subtype1'] = testcase.tokens.pop(
+    testcase.fields['subtype1'] = testcase.fields.pop(
         'subtype1',
         '-'
     ).lower()
-    testcase.tokens['casecomponent'] = testcase.tokens.pop(
+    testcase.fields['casecomponent'] = testcase.fields.pop(
         'casecomponent', '-').lower()
-    testcase.tokens['caseimportance'] = testcase.tokens.pop(
+    testcase.fields['caseimportance'] = testcase.fields.pop(
         'caseimportance', 'medium').lower()
-    testcase.tokens['caselevel'] = testcase.tokens.pop(
+    testcase.fields['caselevel'] = testcase.fields.pop(
         'caselevel', 'component').lower()
-    testcase.tokens['setup'] = testcase.tokens.pop('setup', None)
-    testcase.tokens['testtype'] = testcase.tokens.pop(
+    testcase.fields['setup'] = testcase.fields.pop('setup', None)
+    testcase.fields['testtype'] = testcase.fields.pop(
         'testtype',
         'functional'
     ).lower()
-    testcase.tokens['title'] = testcase.tokens.pop('title', testcase.name)
-    testcase.tokens['upstream'] = testcase.tokens.pop('upstream', 'no').lower()
+    testcase.fields['title'] = testcase.fields.pop('title', testcase.name)
+    testcase.fields['upstream'] = testcase.fields.pop('upstream', 'no').lower()
 
-    testcase.tokens.pop('title', None)
-    testcase.tokens.pop('status', None)
+    testcase.fields.pop('title', None)
+    testcase.fields.pop('status', None)
 
-    for key, value in testcase.tokens.items():
+    for key, value in testcase.fields.items():
         if value is None:
             continue
         custom_field = ElementTree.Element('custom-field')
@@ -1025,7 +966,7 @@ def xml_test_case(
     testcases.append(properties)
 
     source_testcases = itertools.chain(
-        *testimony.get_testcases([source_code_path]).values())
+        *collector.collect_tests(source_code_path).values())
     for testcase in source_testcases:
         testcases.append(create_xml_testcase(testcase))
 
@@ -1170,9 +1111,9 @@ def xml_test_run(
     testsuites.append(properties)
 
     testcases = {
-        generate_test_id(test): test.tokens.get('id')
+        generate_test_id(test): test.fields.get('id')
         for test in itertools.chain(
-                *testimony.get_testcases([source_code_path]).values()
+                *collector.collect_tests(source_code_path).values()
         )
     }
     testsuite = ElementTree.parse(junit_path).getroot()

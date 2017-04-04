@@ -15,9 +15,7 @@ tools to interact with Polarion. Possible interactions are:
   project code base.
 * Automatic creation/update of Test Runs based on a jUnit XML file.
 
-Betelgeuse uses `Testimony <https://pypi.python.org/pypi/testimony>`_ and
-Pylarion projects to parse test cases and communicate with Polarion
-respectively.
+Betelgeuse uses Pylarion project to communicate with Polarion.
 
 Prerequisites
 `````````````
@@ -90,7 +88,7 @@ Assuming that you have a ``test_user.py`` file with the following content:
 Using the example above, Betelgeuse will recognize that there are 2 test cases
 available, and the following attributes will be derived:
 
-* Name: this attribute will be derived from the name of the test method itself:
+* Title: this attribute will be derived from the name of the test method itself:
 
       - test_positive_create_user
       - test_positive_create_car
@@ -104,9 +102,9 @@ available, and the following attributes will be derived:
       - test_user.EntitiesTest.test_positive_create_car
 
 By default, the values automatically derived by Betelgeuse are not very
-flexible, specially in the case when you rename an existing test case or move it
-to a different class or module. It is recommended, therefore, the use of
-Testimony ``tokens`` to provide a bit more information about the tests.
+flexible, specially in the case when you rename an existing test case or move
+it to a different class or module. It is recommended, therefore, the use of
+field list fields to provide a bit more information about the tests.
 
 .. code-block:: python
 
@@ -120,15 +118,17 @@ Testimony ``tokens`` to provide a bit more information about the tests.
               """Create a new user providing all expected attributes.
 
               :id: 1d73b8cc-a754-4637-8bae-d9d2aaf89003
+              :title: Create a new user providing all expected attributes
               """
               user = entities.User(name='David', age=20)
               self.assertEqual(user.name, 'David')
               self.assertEqual(user.age, 20)
 
-Now Betelgeuse can use this first line to derive a friendlier name for your test
-(instead of using *test_positive_create_user*) and a specific value for its ID.
-Other information can also be added to the docstring to provide more
-information, and this can be handled by the use of Testimony tokens.
+Now Betelgeuse can use the ``:title:`` field to derive a friendlier name for
+your test (instead of using *test_positive_create_user*) and a specific value
+for its ID. Other information can also be added to the docstring to provide
+more information, and this can be handled by adding more fields (named after
+Polarion fields and custom fields).
 
 .. note::
 
@@ -167,21 +167,23 @@ test-case command
 Creates/Updates test cases in Polarion. This command performs the following
 steps:
 
-- Testimony is called to parse the test cases.
-- For each parsed test case, the following actions are performed:
+- Walk a ``path`` and collect the test methods and functions defined on test
+  modules. Test modules are the ones which name matches either ``test_*.py`` or
+  ``*_test.py``.
+- For each collected test, the following actions are performed:
 
-    - If ``$ID`` token is present in the test case, it is used as the test case
+    - If ``:id:`` field is present in the test case, it is used as the test case
       id. Or it is derived automatically based on the test Python import path.
-    - Test case object is built based on different supplied test case tokens.
-    - If ``:requirement`` token is present in the test case, it will be used as the
-      requirement name. Otherwise it is derived from the test module name. For
-      example, if the test module name is ``test_login_example``, then the
-      requirement name is ``Login Example``.
+    - If ``:requirement:`` field is present in the test docstring, it will be
+      used as the requirement name. Otherwise it is derived from the test
+      module name. For example, if the test module name is
+      ``test_login_example``, then the requirement name is ``Login Example``.
+    - Other fields are going to be populated if present on the test docstring.
     - The derived requirement name is queried in Polarion to check if it is
       already present. Otherwise it is created.
-    - The test case is queried with ``$ID`` token in Polarion. If the test case
-      is already present, it will be updated. Otherwise, it will be created and
-      linked to the requirement.
+    - The test case is queried with ``:id:`` field in Polarion. If the test
+      case is already present, it will be updated. Otherwise, it will be
+      created and linked to the requirement.
 
 .. code-block:: console
 
@@ -340,14 +342,14 @@ With the above report, Betelgeuse performs the following:
       ``sample_project.tests.test_login_example.LoginTestCase.test_login_1``.
 
 - The information obtained from both the steps above are compared and ``:ID``
-  token of the test method or function is identified. This id is then queried
+  field of the test method or function is identified. This id is then queried
   against Polarion for a matching work item id (Polarion test case). Once the
   work item id is identified, Betelgeuse will add the result for this test
   case work item id in the test run.
 
 .. warning::
 
-  - If Betelgeuse is not able to find the ``:ID`` token for a test method, it
+  - If Betelgeuse is not able to find the ``:ID`` field for a test method, it
     will default to the Python import path. In our current example, it will be
     ``sample_project.tests.test_login_example.LoginTestCase.test_login_1``.
   - If no result is returned when querying Polarion for a matching test case,
@@ -451,9 +453,9 @@ format as explained in `test-run command`_ section.
 Case Study - A real world sample Test Case
 ```````````````````````````````````````````
 
-Testimony tokens can be used to provide more information about a test case. The
-more information one provides via these tokens, the more accurate the data being
-imported into Polarion. For example:
+Field list fields can be used to provide more information about a test case.
+The more information one provides via these fields, the more accurate the data
+being imported into Polarion. For example:
 
 .. code-block:: python
 
@@ -479,21 +481,21 @@ imported into Polarion. For example:
           self.assertEqual(user.name, 'David')
           self.assertEqual(user.age, 20)
 
-When the above test case is ran, Betelgeuse will make use of all 9 tokens
+When the above test case is collected, Betelgeuse will make use of all 9 fields
 provided and generates a more meaningful test case.
 
-Ok, this is cool. But wait, there is more! If you already read
-`Testimony documentation <http://testimony-qe.readthedocs.io/>`_, it supports
-tokens at different levels, namely:
+Ok, this is cool. But wait, there is more! Betelgeuse will reuse fields defined
+in different levels, namely:
 
   - function level
   - class level
   - module level
+  - package level
 
 This feature can be leveraged to minimize the amount of information that needs
 to be written for each test case. Since most of the time, test cases grouped in
 a module usually share the same generic information, one could move most of
-these tokens to the ``module`` level and every single test case found by
+these fields to the ``module`` level and every single test case found by
 Betelgeuse will inherit these attributes. For example:
 
 
@@ -541,6 +543,6 @@ Betelgeuse will inherit these attributes. For example:
 Now all discovered test cases will inherit the attributes defined at the module
 level. Furthermore, the test case attributes can be overridden at the *class
 level* or at the *test case level*. Using the example above, since
-``test_positive_create_car`` has its own *CaseImportance* token defined,
+``test_positive_create_car`` has its own *caseimportance* field defined,
 Betelgeuse will use its value of *Medium* for this test case alone while all
 other test cases will have a value of *High*, derived from the module.
