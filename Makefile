@@ -7,7 +7,7 @@ init-dev:
 	pip install -r requirements-dev.txt
 
 lint:
-	flake8 betelgeuse.py
+	flake8 betelgeuse/
 
 package: package-clean
 	python setup.py --quiet sdist bdist_wheel
