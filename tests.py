@@ -104,7 +104,7 @@ def test_add_test_case_create():
             patches['Requirement'].create.assert_called_once_with(
                 'PROJECT', 'Module', '', reqtype='functional')
             patches['TestCase'].query.assert_called_once_with(
-                'path.to.test_module.NameTestCase.test_name',
+                '"path.to.test_module.NameTestCase.test_name"',
                 fields=[
                     'approvals',
                     'caseautomation',
@@ -125,7 +125,7 @@ def test_add_test_case_create():
                 caseposneg='positive',
                 setup=None,
                 subtype1='-',
-                test_case_id='path.to.test_module.NameTestCase.test_name',
+                test_case_id='"path.to.test_module.NameTestCase.test_name"',
                 testtype='functional',
                 upstream='no',
             )
