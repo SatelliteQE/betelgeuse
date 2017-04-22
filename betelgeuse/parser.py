@@ -1,12 +1,8 @@
 """Parsers for test docstrings."""
 from HTMLParser import HTMLParser
+from StringIO import StringIO
 from collections import namedtuple
 from xml.dom import minidom
-
-try:
-    from io import StringIO
-except:
-    from StringIO import StringIO
 
 from docutils.core import publish_parts
 from docutils.parsers.rst import nodes, roles
@@ -160,7 +156,7 @@ def parse_docstring(docstring=None):
             'field3': 'value3',
         }
     """
-    if docstring is None:
+    if not docstring:
         return {}
 
     fields_dict = {}

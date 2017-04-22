@@ -180,6 +180,7 @@ def test_add_test_record_unexpected_exception():
     """Check if test record creation reraise unexpected exceptions."""
     class UnexpectedException(Exception):
         """Some unexpected exception."""
+
         pass
     test_run = mock.MagicMock()
     test_run.add_test_record_by_fields.side_effect = UnexpectedException(

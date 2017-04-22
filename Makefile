@@ -7,7 +7,7 @@ init-dev:
 	pip install -r requirements-dev.txt
 
 lint:
-	flake8 betelgeuse/
+	flake8 betelgeuse/ tests/
 
 package: package-clean
 	python setup.py --quiet sdist bdist_wheel
@@ -24,9 +24,9 @@ test-publish:
 	python setup.py bdist_wheel upload -r testpypi
 
 test:
-	py.test tests.py
+	py.test tests
 
 test-coverage:
-	py.test --verbose --cov-report term --cov=betelgeuse tests.py
+	py.test --verbose --cov-report term --cov=betelgeuse tests
 
 .PHONY: all init init-dev lint publish test-publish test test-coverage
