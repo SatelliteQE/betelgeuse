@@ -13,7 +13,6 @@ import datetime
 import itertools
 import json
 import logging
-import multiprocessing
 import re
 import ssl
 import time
@@ -55,29 +54,6 @@ JUNIT_TEST_STATUS = ['error', 'failure', 'skipped']
 
 # Cache for shared objects
 OBJ_CACHE = {'requirements': {}}
-
-
-class JobNumberParamType(click.ParamType):
-    """Number of jobs click param type.
-
-    This param type accepts ``auto`` or any positive integer (>0) as valid
-    values.
-    """
-
-    name = 'job number'
-
-    def convert(self, value, param, context):
-        """Convert string ``auto`` into the CPU count."""
-        if value.lower() == 'auto':
-            return multiprocessing.cpu_count()
-        value = int(value)
-        if value <= 0:
-            self.fail(
-                '{0} is not a positive integer'.format(value), param, context)
-        return value
-
-
-JOB_NUMBER = JobNumberParamType()
 
 
 def validate_key_value_option(ctx, param, value):
@@ -573,18 +549,8 @@ def add_test_record(result):
 
 
 @click.group()
-@click.option(
-    '--jobs',
-    '-j',
-    default='1',
-    help='Number of jobs or auto to use the CPU count.',
-    type=JOB_NUMBER
-)
-@click.pass_context
-def cli(context, jobs):
+def cli():
     """Betelgeuse CLI command group."""
-    context.obj = {}
-    context.obj['jobs'] = jobs
 
 
 @cli.command('test-case')
@@ -609,17 +575,13 @@ def cli(context, jobs):
     default='{path}#{line_number}',
 )
 @click.argument('project')
-@click.pass_context
-def test_case(context, path, collect_only, automation_script_format, project):
+def test_case(path, collect_only, automation_script_format, project):
     """Sync test cases with Polarion."""
-    testcases = collector.collect_tests(path)
     OBJ_CACHE['automation_script_format'] = automation_script_format
     OBJ_CACHE['collect_only'] = collect_only
     OBJ_CACHE['project'] = project
-    pool = multiprocessing.Pool(context.obj['jobs'])
-    pool.map(add_test_case, testcases.items())
-    pool.close()
-    pool.join()
+    for item in collector.collect_tests(path).items():
+        add_test_case(item)
 
 
 @cli.command('test-plan')
@@ -647,8 +609,7 @@ def test_case(context, path, collect_only, automation_script_format, project):
     multiple=True,
 )
 @click.argument('project')
-@click.pass_context
-def test_plan(context, name, plan_type, parent_name, custom_fields, project):
+def test_plan(name, plan_type, parent_name, custom_fields, project):
     """Create a new test plan in Polarion."""
     # Sanitize names to valid values for IDs...
     custom_fields = load_custom_fields(custom_fields)
@@ -748,9 +709,8 @@ def test_results(path):
     multiple=True,
 )
 @click.argument('project')
-@click.pass_context
 def test_run(
-        context, path, source_code_path, test_run_id, test_run_type,
+        path, source_code_path, test_run_id, test_run_type,
         test_template_id, user, custom_fields, project):
     """Execute a test run based on jUnit XML file."""
     custom_fields = load_custom_fields(custom_fields)
@@ -792,10 +752,8 @@ def test_run(
     OBJ_CACHE['testcases'] = testcases
 
     TestRun.session.tx_begin()
-    pool = multiprocessing.Pool(context.obj['jobs'])
-    pool.map(add_test_record, results)
-    pool.close()
-    pool.join()
+    for result in results:
+        add_test_record(result)
     TestRun.session.tx_commit()
 
 
@@ -933,9 +891,8 @@ def create_xml_testcase(testcase):
 @click.argument('source-code-path', type=click.Path(exists=True))
 @click.argument('project')
 @click.argument('output-path')
-@click.pass_context
 def xml_test_case(
-        context, dry_run, lookup_method, response_property, source_code_path,
+        dry_run, lookup_method, response_property, source_code_path,
         project, output_path):
     """Generate an XML suited to be importer by the test-case importer.
 
@@ -1046,9 +1003,8 @@ def xml_test_case(
 @click.argument('user')
 @click.argument('project')
 @click.argument('output-path')
-@click.pass_context
 def xml_test_run(
-        context, custom_fields, dry_run, lookup_method, no_include_skipped,
+        custom_fields, dry_run, lookup_method, no_include_skipped,
         response_property, status, test_run_id, test_run_template_id,
         test_run_title, test_run_type_id, junit_path, source_code_path, user,
         project, output_path):

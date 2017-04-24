@@ -1,5 +1,4 @@
 """Betelgeuse unit tests."""
-import betelgeuse
 import click
 import mock
 import os
@@ -9,7 +8,6 @@ import re
 from click.testing import CliRunner
 from betelgeuse import (
     INVALID_CHARS_REGEX,
-    JobNumberParamType,
     PylarionLibException,
     add_test_case,
     add_test_record,
@@ -307,16 +305,6 @@ def test_invalid_test_run_chars_regex():
     assert re.sub(INVALID_CHARS_REGEX, '', invalid_test_run_id) == ''
 
 
-def test_job_param_type():
-    """Check if job paramter type works."""
-    job_param = JobNumberParamType()
-    with mock.patch('betelgeuse.multiprocessing') as multiprocessing:
-        job_param.convert('auto', None, None)
-        multiprocessing.cpu_count.assert_called_once_with()
-    with pytest.raises(click.BadParameter):
-        job_param.convert('-1', None, None)
-
-
 def test_parse_requirement_name():
     """Check if parsing requirement name works."""
     assert parse_requirement_name(
@@ -372,23 +360,21 @@ def test_test_case(cli_runner):
         with mock.patch.multiple(
                 'betelgeuse',
                 TestCase=mock.DEFAULT,
+                add_test_case=mock.DEFAULT,
                 collector=mock.DEFAULT,
-                multiprocessing=mock.DEFAULT,
         ) as patches:
-            pool = mock.MagicMock()
-            patches['multiprocessing'].Pool.return_value = pool
-
             result = cli_runner.invoke(
                 cli,
                 ['test-case', '--path', 'test_something.py', 'PROJECT']
             )
             assert result.exit_code == 0
-            pool.map.assert_called_once_with(
-                betelgeuse.add_test_case,
-                patches['collector'].collect_tests().items()
-            )
-            pool.close.assert_called_once_with()
-            pool.join.assert_called_once_with()
+            test_function = mock.MagicMock()
+            tests = {
+                'test_something.py': [test_function]
+            }
+            patches['collector'].collect_tests.items.return_value = tests
+            patches['collector'].collect_tests('test_something.py')
+            patches['add_test_case'].called_once_with(tests)
 
 
 def test_test_plan(cli_runner):
@@ -526,12 +512,9 @@ def test_test_run(cli_runner):
         with mock.patch.multiple(
                 'betelgeuse',
                 TestRun=mock.DEFAULT,
+                add_test_record=mock.DEFAULT,
                 collector=mock.DEFAULT,
-                multiprocessing=mock.DEFAULT,
         ) as patches:
-            pool = mock.MagicMock()
-            patches['multiprocessing'].Pool.return_value = pool
-
             result = cli_runner.invoke(
                 cli,
                 ['test-run', '--path', 'junit_report.xml', 'PROJECT']
@@ -539,12 +522,8 @@ def test_test_run(cli_runner):
             assert result.exit_code == 0
             patches['TestRun'].session.tx_begin.assert_called_once_with()
             patches['TestRun'].session.tx_commit.assert_called_once_with()
-            pool.map.assert_called_once_with(
-                betelgeuse.add_test_record,
-                parse_junit('junit_report.xml')
-            )
-            pool.close.assert_called_once_with()
-            pool.join.assert_called_once_with()
+            calls = [mock.call(r) for r in parse_junit('junit_report.xml')]
+            patches['add_test_record'].assert_has_calls(calls)
 
 
 def test_test_run_new_test_run(cli_runner):
@@ -555,11 +534,9 @@ def test_test_run_new_test_run(cli_runner):
         with mock.patch.multiple(
                 'betelgeuse',
                 TestRun=mock.DEFAULT,
+                add_test_record=mock.DEFAULT,
                 collector=mock.DEFAULT,
-                multiprocessing=mock.DEFAULT,
         ) as patches:
-            pool = mock.MagicMock()
-            patches['multiprocessing'].Pool.return_value = pool
             patches['TestRun'].side_effect = PylarionLibException
 
             result = cli_runner.invoke(
@@ -586,12 +563,8 @@ def test_test_run_new_test_run(cli_runner):
             )
             patches['TestRun'].session.tx_begin.assert_called_once_with()
             patches['TestRun'].session.tx_commit.assert_called_once_with()
-            pool.map.assert_called_once_with(
-                betelgeuse.add_test_record,
-                parse_junit('junit_report.xml')
-            )
-            pool.close.assert_called_once_with()
-            pool.join.assert_called_once_with()
+            calls = [mock.call(r) for r in parse_junit('junit_report.xml')]
+            patches['add_test_record'].assert_has_calls(calls)
 
 
 def test_create_xml_property():
