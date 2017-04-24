@@ -28,6 +28,18 @@ def test_parse_none_docstring(docstring):
     assert parser.parse_docstring(docstring) == {}
 
 
+def test_parse_docstring_special_characters():
+    """Check ``parse_docstring`` parser result."""
+    docstring = """
+    Description with an special character like é
+
+    :field1: value with an special character like é
+    """
+    assert parser.parse_docstring(docstring) == {
+        u'field1': u'value with an special character like é',
+    }
+
+
 @pytest.mark.parametrize('string', ('', None))
 def test_parse_rst_empty_string(string):
     """Check ``parse_rst`` returns empty string on empty input."""
@@ -62,3 +74,12 @@ def test_parse_rst_translator_class():
     )
     assert parser.parse_rst(
         docstring, parser.TableFieldListTranslator) == expected
+
+
+def test_parse_rst_special_characters():
+    """Check if ``parse_rst`` plays nice with special characters."""
+    assert parser.parse_rst(u'String with special character like é') == (
+        u'<div class="document">\n'
+        u'<p>String with special character like é</p>\n'
+        u'</div>\n'
+    )
