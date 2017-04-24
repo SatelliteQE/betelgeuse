@@ -97,7 +97,7 @@ def test_add_test_case_create():
             test.testmodule = 'path/to/test_module.py'
             test.fields = {}
             test.fields['description'] = '<p>This is sample description</p>\n'
-            add_test_case(('path/to/test_module.py', [test]))
+            add_test_case('path/to/test_module.py', test)
             patches['Requirement'].query.assert_called_once_with(
                 'Module', fields=['title', 'work_item_id'])
             patches['Requirement'].create.assert_called_once_with(
@@ -375,6 +375,31 @@ def test_test_case(cli_runner):
             patches['collector'].collect_tests.items.return_value = tests
             patches['collector'].collect_tests('test_something.py')
             patches['add_test_case'].called_once_with(tests)
+
+
+def test_test_case_skip_on_failure(cli_runner):
+    """Check if test case create/update skips on failures."""
+    with cli_runner.isolated_filesystem():
+        with open('test_something.py', 'w') as handler:
+            handler.write(TEST_MODULE)
+        with mock.patch.multiple(
+                'betelgeuse',
+                add_test_case=mock.DEFAULT,
+                collector=mock.DEFAULT,
+        ) as patches:
+            test_function = mock.MagicMock()
+            tests = {
+                'test_something.py': [test_function]
+            }
+            patches['collector'].collect_tests.return_value = tests
+            patches['add_test_case'].side_effect = PylarionLibException
+            result = cli_runner.invoke(
+                cli,
+                ['test-case', '--path', 'test_something.py', 'PROJECT']
+            )
+            assert result.exit_code == 0
+            test_function.fields.get.assert_called_once_with(
+                'title', test_function.name)
 
 
 def test_test_plan(cli_runner):

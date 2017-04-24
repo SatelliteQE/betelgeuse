@@ -318,166 +318,164 @@ def approve_test_case(test_case):
         test_case.edit_approval(approvee, 'approved')
 
 
-def add_test_case(args):
+def add_test_case(path, test):
     """Task that creates or updates Test Cases and manages their Requirement.
 
     This task relies on ``OBJ_CACHE`` to get the collect_only and project
     objects.
 
-    :param args: A tuple where the first element is a path and the second is a
-        list of ``TestFunction`` objects mapping the tests from that path.
+    :param path: The path to the ``test``'s module.
+    :param test: A ``collector.TestFunction`` instance.
     """
-    path, tests = args
     collect_only = OBJ_CACHE['collect_only']
     project = OBJ_CACHE['project']
 
-    for test in tests:
-        # Fetch the test case id if the @Id tag is present otherwise generate a
-        # test_case_id based on the test Python import path
-        test_case_id = test.fields.get('id', generate_test_id(test))
-        if test.docstring:
-            if not type(test.docstring) == unicode:
-                test.docstring = test.docstring.decode('utf8')
+    # Fetch the test case id if the @Id tag is present otherwise generate a
+    # test_case_id based on the test Python import path
+    test_case_id = test.fields.get('id', generate_test_id(test))
+    if test.docstring:
+        if not type(test.docstring) == unicode:
+            test.docstring = test.docstring.decode('utf8')
 
-        automation_script = test.fields.get(
-            'automation_script',
-            OBJ_CACHE['automation_script_format'].format(
-                path=test.module_def.path, line_number=test.function_def.lineno
-            )
+    automation_script = test.fields.get(
+        'automation_script',
+        OBJ_CACHE['automation_script_format'].format(
+            path=test.module_def.path, line_number=test.function_def.lineno
         )
-        # Is the test automated? Acceptable values are:
-        # automated, manualonly, and notautomated
-        auto_status = test.fields.get(
-            'caseautomation',
-            'notautomated' if test.fields.get('status') else 'automated'
-        ).lower()
-        caseposneg = test.fields.get(
-            'caseposneg',
-            'negative' if 'negative' in test.name else 'positive'
-        ).lower()
-        subtype1 = test.fields.get(
-            'subtype1',
-            '-'
-        ).lower()
-        casecomponent = test.fields.get('casecomponent', '-').lower()
-        caseimportance = test.fields.get(
-            'caseimportance', 'medium').lower()
-        caselevel = test.fields.get('caselevel', 'component').lower()
-        description = test.fields.get('description', parser.parse_rst(
-            test.docstring,
-            parser.TableFieldListTranslator,
-        ))
-        setup = test.fields.get('setup')
-        status = test.fields.get('status', 'approved').lower()
-        testtype = test.fields.get(
-            'testtype',
-            'functional'
-        ).lower()
-        title = test.fields.get('title', test.name)
-        upstream = test.fields.get('upstream', 'no').lower()
-        steps = test.fields.get('steps')
-        expectedresults = test.fields.get('expectedresults')
+    )
+    # Is the test automated? Acceptable values are:
+    # automated, manualonly, and notautomated
+    auto_status = test.fields.get(
+        'caseautomation',
+        'notautomated' if test.fields.get('status') else 'automated'
+    ).lower()
+    caseposneg = test.fields.get(
+        'caseposneg',
+        'negative' if 'negative' in test.name else 'positive'
+    ).lower()
+    subtype1 = test.fields.get(
+        'subtype1',
+        '-'
+    ).lower()
+    casecomponent = test.fields.get('casecomponent', '-').lower()
+    caseimportance = test.fields.get(
+        'caseimportance', 'medium').lower()
+    caselevel = test.fields.get('caselevel', 'component').lower()
+    description = test.fields.get('description', parser.parse_rst(
+        test.docstring,
+        parser.TableFieldListTranslator,
+    ))
+    setup = test.fields.get('setup')
+    status = test.fields.get('status', 'approved').lower()
+    testtype = test.fields.get(
+        'testtype',
+        'functional'
+    ).lower()
+    title = test.fields.get('title', test.name)
+    upstream = test.fields.get('upstream', 'no').lower()
+    steps = test.fields.get('steps')
+    expectedresults = test.fields.get('expectedresults')
 
-        if steps and expectedresults:
-            test_steps = generate_test_steps(
-                map_steps(steps, expectedresults))
-        else:
-            test_steps = None
+    if steps and expectedresults:
+        test_steps = generate_test_steps(
+            map_steps(steps, expectedresults))
+    else:
+        test_steps = None
 
-        results = []
+    results = []
+    if not collect_only:
+        results = TestCase.query(
+            test_case_id,
+            fields=[
+                'approvals',
+                'caseautomation',
+                'caseposneg',
+                'description',
+                'work_item_id',
+            ]
+        )
+    requirement_name = test.fields.get(
+        'requirement', parse_requirement_name(path))
+    if len(results) == 0:
+        click.echo(
+            'Creating test case {0} for requirement: {1}.'
+            .format(title, requirement_name)
+        )
         if not collect_only:
-            results = TestCase.query(
-                test_case_id,
-                fields=[
-                    'approvals',
-                    'caseautomation',
-                    'caseposneg',
-                    'description',
-                    'work_item_id',
-                ]
+            test_case = TestCase.create(
+                project,
+                title,
+                description,
+                automation_script=automation_script,
+                caseautomation=auto_status,
+                casecomponent=casecomponent,
+                caseimportance=caseimportance,
+                caselevel=caselevel,
+                caseposneg=caseposneg,
+                setup=setup,
+                subtype1=subtype1,
+                test_case_id=test_case_id,
+                testtype=testtype,
+                upstream=upstream,
             )
-        requirement_name = test.fields.get(
-            'requirement', parse_requirement_name(path))
-        if len(results) == 0:
-            click.echo(
-                'Creating test case {0} for requirement: {1}.'
-                .format(title, requirement_name)
-            )
-            if not collect_only:
-                test_case = TestCase.create(
-                    project,
-                    title,
-                    description,
-                    automation_script=automation_script,
-                    caseautomation=auto_status,
-                    casecomponent=casecomponent,
-                    caseimportance=caseimportance,
-                    caselevel=caselevel,
-                    caseposneg=caseposneg,
-                    setup=setup,
-                    subtype1=subtype1,
-                    test_case_id=test_case_id,
-                    testtype=testtype,
-                    upstream=upstream,
-                )
+            approve_test_case(test_case)
+            test_case.status = status
+            if test_steps:
+                test_case.test_steps = test_steps
+            test_case.update()
+        click.echo(
+            'Linking test case {0} to requirement: {1}.'
+            .format(title, requirement_name)
+        )
+        if not collect_only:
+            requirement = fetch_requirement(
+                requirement_name, project, collect_only)
+            test_case.add_linked_item(
+                requirement.work_item_id, 'verifies')
+    else:
+        click.echo(
+            'Updating test case {0} for requirement {1}.'
+            .format(title, requirement_name)
+        )
+        # Ensure that a single match for the Test Case is
+        # returned.
+        assert len(results) == 1
+        test_case = results[0]
+        if not collect_only and any((
+                len(test_case.approvals) == 0,
+                test_case.automation_script != automation_script,
+                test_case.caseautomation != auto_status,
+                test_case.casecomponent != casecomponent,
+                test_case.caseimportance != caseimportance,
+                test_case.caselevel != caselevel,
+                test_case.caseposneg != caseposneg,
+                test_case.description != description,
+                test_case.setup != setup,
+                test_case.status != status,
+                test_case.subtype1 != subtype1,
+                test_case.test_steps != test_steps,
+                test_case.testtype != testtype,
+                test_case.title != title,
+                test_case.upstream != upstream,
+        )):
+            if len(test_case.approvals) == 0:
                 approve_test_case(test_case)
-                test_case.status = status
-                if test_steps:
-                    test_case.test_steps = test_steps
-                test_case.update()
-            click.echo(
-                'Linking test case {0} to requirement: {1}.'
-                .format(title, requirement_name)
-            )
-            if not collect_only:
-                requirement = fetch_requirement(
-                    requirement_name, project, collect_only)
-                test_case.add_linked_item(
-                    requirement.work_item_id, 'verifies')
-        else:
-            click.echo(
-                'Updating test case {0} for requirement {1}.'
-                .format(title, requirement_name)
-            )
-            # Ensure that a single match for the Test Case is
-            # returned.
-            assert len(results) == 1
-            test_case = results[0]
-            if not collect_only and any((
-                    len(test_case.approvals) == 0,
-                    test_case.automation_script != automation_script,
-                    test_case.caseautomation != auto_status,
-                    test_case.casecomponent != casecomponent,
-                    test_case.caseimportance != caseimportance,
-                    test_case.caselevel != caselevel,
-                    test_case.caseposneg != caseposneg,
-                    test_case.description != description,
-                    test_case.setup != setup,
-                    test_case.status != status,
-                    test_case.subtype1 != subtype1,
-                    test_case.test_steps != test_steps,
-                    test_case.testtype != testtype,
-                    test_case.title != title,
-                    test_case.upstream != upstream,
-            )):
-                if len(test_case.approvals) == 0:
-                    approve_test_case(test_case)
-                test_case.automation_script = automation_script
-                test_case.caseautomation = auto_status
-                test_case.casecomponent = casecomponent
-                test_case.caseimportance = caseimportance
-                test_case.caselevel = caselevel
-                test_case.caseposneg = caseposneg
-                test_case.description = description
-                test_case.setup = setup
-                test_case.status = status
-                test_case.subtype1 = subtype1
-                test_case.testtype = testtype
-                test_case.title = title
-                test_case.upstream = upstream
-                if test_steps:
-                    test_case.test_steps = test_steps
-                test_case.update()
+            test_case.automation_script = automation_script
+            test_case.caseautomation = auto_status
+            test_case.casecomponent = casecomponent
+            test_case.caseimportance = caseimportance
+            test_case.caselevel = caselevel
+            test_case.caseposneg = caseposneg
+            test_case.description = description
+            test_case.setup = setup
+            test_case.status = status
+            test_case.subtype1 = subtype1
+            test_case.testtype = testtype
+            test_case.title = title
+            test_case.upstream = upstream
+            if test_steps:
+                test_case.test_steps = test_steps
+            test_case.update()
 
 
 def add_test_record(result):
@@ -580,8 +578,16 @@ def test_case(path, collect_only, automation_script_format, project):
     OBJ_CACHE['automation_script_format'] = automation_script_format
     OBJ_CACHE['collect_only'] = collect_only
     OBJ_CACHE['project'] = project
-    for item in collector.collect_tests(path).items():
-        add_test_case(item)
+    for path, tests in collector.collect_tests(path).items():
+        for test in tests:
+            try:
+                add_test_case(path, test)
+            except PylarionLibException as err:
+                title = test.fields.get('title', test.name)
+                click.echo(
+                    'Failed to add test case {0}::{1} due to {2}.'
+                    .format(path, title, err)
+                )
 
 
 @cli.command('test-plan')
