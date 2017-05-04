@@ -1,5 +1,4 @@
 """Parsers for test docstrings."""
-from HTMLParser import HTMLParser
 from StringIO import StringIO
 from collections import namedtuple
 from xml.dom import minidom
@@ -160,7 +159,7 @@ def parse_docstring(docstring=None):
         return {}
 
     fields_dict = {}
-    parsed_docstring = HTMLParser().unescape(parse_rst(docstring))
+    parsed_docstring = parse_rst(docstring)
     if isinstance(parsed_docstring, type(u'')):
         parsed_docstring = parsed_docstring.encode('utf-8')
     document = minidom.parseString(parsed_docstring)
