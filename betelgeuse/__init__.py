@@ -783,12 +783,6 @@ def create_xml_testcase(testcase):
         if not type(testcase.docstring) == unicode:
             testcase.docstring = testcase.docstring.decode('utf8')
 
-    if 'test' in testcase.fields:
-        testcase.fields['title'] = testcase.fields.pop(
-            'test', testcase.fields.get('title'))
-    if 'assert' in testcase.fields:
-        testcase.fields['expectedresults'] = testcase.fields.pop(
-            'assert', testcase.fields.get('expectedresults'))
     if 'title' in testcase.fields:
         title = ElementTree.Element('title')
         title.text = testcase.fields.pop('title')
@@ -807,6 +801,7 @@ def create_xml_testcase(testcase):
         linked_work_item = ElementTree.Element('linked-work-item')
         linked_work_item.set('workitem-id', testcase.fields.pop('requirement'))
         linked_work_item.set('role-id', 'verifies')
+        linked_work_item.set('lookup-method', 'name')
         linked_work_items.append(linked_work_item)
     element.append(linked_work_items)
 
@@ -853,11 +848,7 @@ def create_xml_testcase(testcase):
         'testtype',
         'functional'
     ).lower()
-    testcase.fields['title'] = testcase.fields.pop('title', testcase.name)
     testcase.fields['upstream'] = testcase.fields.pop('upstream', 'no').lower()
-
-    testcase.fields.pop('title', None)
-    testcase.fields.pop('status', None)
 
     for key, value in testcase.fields.items():
         if value is None:
@@ -935,12 +926,6 @@ def xml_test_case(
 
     et = ElementTree.ElementTree(testcases)
     et.write(output_path, encoding='utf-8', xml_declaration=True)
-    # et.write(output_path)
-    # TODO remove
-    from xml.dom import minidom
-    pretty = minidom.parse(output_path).toprettyxml(indent='  ')
-    with open(output_path, 'w') as f:
-        f.write(pretty)
 
 
 @cli.command('xml-test-run')
