@@ -56,13 +56,7 @@ class TestFunction(object):
         for docstring in docstrings:
             if docstring and not isinstance(docstring, type(u'')):
                 docstring = docstring.decode('utf-8')
-            self.fields = parse_docstring(docstring)
-
-        # Always use the first line of docstring as test case name
-        if self.fields.get('test') is None:
-            if docstring and not isinstance(docstring, type(u'')):
-                docstring = self.docstring.decode('utf-8')
-            self.fields['test'] = docstring.strip().split('\n')[0]
+            self.fields.update(parse_docstring(docstring))
 
 
 def is_test_module(filename):
