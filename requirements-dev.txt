@@ -2,7 +2,6 @@
 flake8
 flake8-docstrings
 flake8-quotes
-pydocstyle==1.0.0  # https://github.com/PyCQA/pydocstyle/issues/207
 
 # For `make package`
 wheel
@@ -14,5 +13,6 @@ twine
 coveralls
 
 # For `make test{,-*}`
+mock
 pytest
 pytest-cov

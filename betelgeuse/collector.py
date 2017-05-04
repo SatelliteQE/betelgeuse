@@ -12,7 +12,7 @@ class TestFunction(object):
     """Wrapper for ``ast.FunctionDef`` which parse docstring information."""
 
     def __init__(self, function_def, parent_class=None, testmodule=None):
-        """A ``ast.FunctionDef`` instance used to extract information."""
+        """``ast.FunctionDef`` instance used to extract information."""
         self.docstring = ast.get_docstring(function_def)
         self.function_def = function_def
         self.name = function_def.name
