@@ -16,3 +16,4 @@ coveralls
 mock
 pytest
 pytest-cov
+pytest-watch

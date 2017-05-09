@@ -29,4 +29,7 @@ test:
 test-coverage:
 	py.test --verbose --cov-report term --cov=betelgeuse tests
 
+test-watch:
+	ptw tests
+
 .PHONY: all init init-dev lint publish test-publish test test-coverage
