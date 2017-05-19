@@ -142,8 +142,9 @@ def map_steps(steps, expectedresults):
         list of expectedresults or a single paragraph.
     """
     try:
-        parsed_steps = minidom.parseString(steps)
-        parsed_expectedresults = minidom.parseString(expectedresults)
+        parsed_steps = minidom.parseString(steps.encode('utf-8'))
+        parsed_expectedresults = minidom.parseString(
+            expectedresults.encode('utf-8'))
     except ExpatError:
         return [(steps, expectedresults)]
     if (parsed_steps.firstChild.tagName == 'p' and
