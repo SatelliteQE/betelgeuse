@@ -783,18 +783,20 @@ def create_xml_testcase(testcase):
         if not type(testcase.docstring) == unicode:
             testcase.docstring = testcase.docstring.decode('utf8')
 
-    if 'title' in testcase.fields:
-        title = ElementTree.Element('title')
-        title.text = testcase.fields.pop('title')
-        element.append(title)
-    if 'description' in testcase.fields:
-        testcase.fields['description'] = testcase.fields.get(
-            'description',
-            parser.parse_rst(testcase.docstring)
-        )
-        description = ElementTree.Element('description')
-        description.text = testcase.fields.pop('description')
-        element.append(description)
+    testcase.fields['title'] = testcase.fields.get(
+        'title',
+        testcase.name
+    )
+    title = ElementTree.Element('title')
+    title.text = testcase.fields.pop('title')
+    element.append(title)
+    testcase.fields['description'] = testcase.fields.get(
+        'description',
+        parser.parse_rst(testcase.docstring)
+    )
+    description = ElementTree.Element('description')
+    description.text = testcase.fields.pop('description')
+    element.append(description)
 
     linked_work_items = ElementTree.Element('linked-work-items')
     if 'requirement' in testcase.fields:
