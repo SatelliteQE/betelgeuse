@@ -121,6 +121,8 @@ def parse_rst(string, translator_class=None):
 
     rst_parse_messages = []
     for warning in warning_stream.getvalue().splitlines():
+        if not warning or ':' not in warning:
+            continue
         warning = warning.split(' ', 2)
         rst_parse_messages.append(RSTParseMessage(
             line=warning[0].split(':')[1],
