@@ -776,39 +776,40 @@ def create_xml_testcase(testcase):
 
     The element will be in the format to be used by the XML test case importer.
     """
+    fields = {k.lower(): v for k, v in testcase.fields.items()}
     element = ElementTree.Element('testcase')
-    element.set('id', testcase.fields.pop('id', generate_test_id(testcase)))
+    element.set('id', fields.pop('id', generate_test_id(testcase)))
     # TODO: set other attributes assignee-id, due-date, initial-estimate
     if testcase.docstring:
         if not type(testcase.docstring) == unicode:
             testcase.docstring = testcase.docstring.decode('utf8')
 
-    testcase.fields['title'] = testcase.fields.get(
+    fields['title'] = fields.get(
         'title',
         testcase.name
     )
     title = ElementTree.Element('title')
-    title.text = testcase.fields.pop('title')
+    title.text = fields.pop('title')
     element.append(title)
-    testcase.fields['description'] = testcase.fields.get(
+    fields['description'] = fields.get(
         'description',
         parser.parse_rst(testcase.docstring)
     )
     description = ElementTree.Element('description')
-    description.text = testcase.fields.pop('description')
+    description.text = fields.pop('description')
     element.append(description)
 
-    linked_work_items = ElementTree.Element('linked-work-items')
-    if 'requirement' in testcase.fields:
+    if 'requirement' in fields:
+        linked_work_items = ElementTree.Element('linked-work-items')
         linked_work_item = ElementTree.Element('linked-work-item')
-        linked_work_item.set('workitem-id', testcase.fields.pop('requirement'))
+        linked_work_item.set('workitem-id', fields.pop('requirement'))
         linked_work_item.set('role-id', 'verifies')
         linked_work_item.set('lookup-method', 'name')
         linked_work_items.append(linked_work_item)
-    element.append(linked_work_items)
+        element.append(linked_work_items)
 
-    steps = testcase.fields.pop('steps', None)
-    expectedresults = testcase.fields.pop('expectedresults', None)
+    steps = fields.pop('steps', None)
+    expectedresults = fields.pop('expectedresults', None)
 
     if steps and expectedresults:
         test_steps = ElementTree.Element('test-steps')
@@ -827,32 +828,32 @@ def create_xml_testcase(testcase):
 
     custom_fields = ElementTree.Element('custom-fields')
 
-    testcase.fields['caseautomation'] = testcase.fields.pop(
+    fields['caseautomation'] = fields.pop(
         'caseautomation',
-        'notautomated' if testcase.fields.pop('status', None) else 'automated'
+        'notautomated' if fields.pop('status', None) else 'automated'
     ).lower()
-    testcase.fields['caseposneg'] = testcase.fields.pop(
+    fields['caseposneg'] = fields.pop(
         'caseposneg',
         'negative' if 'negative' in testcase.name else 'positive'
     ).lower()
-    testcase.fields['subtype1'] = testcase.fields.pop(
+    fields['subtype1'] = fields.pop(
         'subtype1',
         '-'
     ).lower()
-    testcase.fields['casecomponent'] = testcase.fields.pop(
+    fields['casecomponent'] = fields.pop(
         'casecomponent', '-').lower()
-    testcase.fields['caseimportance'] = testcase.fields.pop(
+    fields['caseimportance'] = fields.pop(
         'caseimportance', 'medium').lower()
-    testcase.fields['caselevel'] = testcase.fields.pop(
+    fields['caselevel'] = fields.pop(
         'caselevel', 'component').lower()
-    testcase.fields['setup'] = testcase.fields.pop('setup', None)
-    testcase.fields['testtype'] = testcase.fields.pop(
+    fields['setup'] = fields.pop('setup', None)
+    fields['testtype'] = fields.pop(
         'testtype',
         'functional'
     ).lower()
-    testcase.fields['upstream'] = testcase.fields.pop('upstream', 'no').lower()
+    fields['upstream'] = fields.pop('upstream', 'no').lower()
 
-    for key, value in testcase.fields.items():
+    for key, value in fields.items():
         if value is None:
             continue
         custom_field = ElementTree.Element('custom-field')
