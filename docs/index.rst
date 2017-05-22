@@ -452,6 +452,36 @@ Example using JSON format:
     not validate them. If an unexpected value is found, the command will fail
     with a stack trace showing the error.
 
+xml-test-case command
++++++++++++++++++++++
+
+The xml-test-case command generates an XML file suited to be imported by the
+Test Case XML Importer. It reads the Python test suite source code and
+generates a XML file with all the information necessary for the Test Case XML
+Importer.
+
+The xml-test-command command requires you to pass:
+
+* The path to the Python test suite source code
+* The Polarion project ID
+* The output XML file path (it will override if the file already exists)
+
+.. note::
+
+    Even though ``--response-property`` is optional, it is highly recommended
+    to pass it because will be easier to monitor the importer messages (which
+    is not handled by Betelgeuse).
+
+The example below shows how to run xml-test-case command:
+
+.. code-block:: console
+
+    $ betelgeuse xml-test-case \
+        --automation-script-format "https://github.com/SatelliteQE/betelgeuse/tree/master/{path}#L{line_number}" \
+        sample_project/tests \
+        PROJECT \
+        output.xml
+
 xml-test-run command
 ++++++++++++++++++++
 
