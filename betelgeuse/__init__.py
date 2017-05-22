@@ -772,7 +772,7 @@ def create_xml_property(name, value):
     return element
 
 
-def create_xml_testcase(testcase):
+def create_xml_testcase(testcase, automation_script_format):
     """Create an XML testcase element.
 
     The element will be in the format to be used by the XML test case importer.
@@ -853,6 +853,10 @@ def create_xml_testcase(testcase):
         'functional'
     ).lower()
     fields['upstream'] = fields.pop('upstream', 'no').lower()
+    fields['automation_script'] = automation_script_format.format(
+        path=testcase.module_def.path,
+        line_number=testcase.function_def.lineno,
+    )
 
     for key, value in fields.items():
         if value is None:
@@ -866,6 +870,14 @@ def create_xml_testcase(testcase):
 
 
 @cli.command('xml-test-case')
+@click.option(
+    '--automation-script-format',
+    help=(r'The format for the automation-script field. The variables {path} '
+          'and {line_number} are available and will be expanded to the test '
+          'case module path and the line number where it\'s defined '
+          'respectively. Default: {path}#{line_number}'),
+    default='{path}#{line_number}',
+)
 @click.option(
     '--dry-run',
     help='Indicate to the importer to not make any change.',
@@ -893,8 +905,8 @@ def create_xml_testcase(testcase):
 @click.argument('project')
 @click.argument('output-path')
 def xml_test_case(
-        dry_run, lookup_method, response_property, source_code_path,
-        project, output_path):
+        automation_script_format, dry_run, lookup_method, response_property,
+        source_code_path, project, output_path):
     """Generate an XML suited to be importer by the test-case importer.
 
     This will read the source code at SOURCE_CODE_PATH in order to capture the
@@ -926,7 +938,8 @@ def xml_test_case(
     source_testcases = itertools.chain(
         *collector.collect_tests(source_code_path).values())
     for testcase in source_testcases:
-        testcases.append(create_xml_testcase(testcase))
+        testcases.append(
+            create_xml_testcase(testcase, automation_script_format))
 
     et = ElementTree.ElementTree(testcases)
     et.write(output_path, encoding='utf-8', xml_declaration=True)
