@@ -55,6 +55,38 @@ JUNIT_TEST_STATUS = ['error', 'failure', 'skipped']
 # Cache for shared objects
 OBJ_CACHE = {'requirements': {}}
 
+TESTCASE_CUSTOM_FIELDS = (
+    'arch',
+    'automation_script',
+    'caseautomation',
+    'casecomponent',
+    'caseimportance',
+    'caselevel',
+    'caseposneg',
+    'environment1',
+    'setup',
+    'subcomponent',
+    'subtype1',
+    'subtype2',
+    'tags',
+    'tcmsarguments',
+    'tcmsbug',
+    'tcmscaseid',
+    'tcmscategory',
+    'tcmscomponent',
+    'tcmsnotes',
+    'tcmsplan',
+    'tcmsreference',
+    'tcmsrequirement',
+    'tcmsscript',
+    'tcmstag',
+    'teardown',
+    'testtier',
+    'testtype',
+    'upstream',
+    'variant',
+)
+
 
 def validate_key_value_option(ctx, param, value):
     """Validate an option that expects key=value formated values."""
@@ -859,7 +891,7 @@ def create_xml_testcase(testcase, automation_script_format):
     )
 
     for key, value in fields.items():
-        if value is None:
+        if value is None or key not in TESTCASE_CUSTOM_FIELDS:
             continue
         custom_field = ElementTree.Element('custom-field')
         custom_field.set('id', key)
