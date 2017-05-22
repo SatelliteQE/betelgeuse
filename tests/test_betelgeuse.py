@@ -40,7 +40,7 @@ JUNIT_XML = """<testsuite tests="4" skips="0">
 </testsuite>
 """
 
-TEST_MODULE = '''
+TEST_MODULE = '''  # noqa: Q000
 def test_something():
     """This test something."""
 
