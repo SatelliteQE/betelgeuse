@@ -363,6 +363,9 @@ def add_test_case(path, test):
     collect_only = OBJ_CACHE['collect_only']
     project = OBJ_CACHE['project']
 
+    # Normalize all fields to lowercase
+    test.fields = {k.lower(): v for k, v in test.fields.items()}
+
     # Fetch the test case id if the @Id tag is present otherwise generate a
     # test_case_id based on the test Python import path
     test_case_id = test.fields.get('id', generate_test_id(test))

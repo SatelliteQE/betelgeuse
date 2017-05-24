@@ -97,6 +97,8 @@ def test_add_test_case_create():
             test.testmodule = 'path/to/test_module.py'
             test.fields = {}
             test.fields['description'] = '<p>This is sample description</p>\n'
+            # Add mixed case field key
+            test.fields['CaseImportance'] = 'critical'
             add_test_case('path/to/test_module.py', test)
             patches['Requirement'].query.assert_called_once_with(
                 'Module', fields=['title', 'work_item_id'])
@@ -119,7 +121,7 @@ def test_add_test_case_create():
                 automation_script='path/to/test_module.py@10',
                 caseautomation='automated',
                 casecomponent='-',
-                caseimportance='medium',
+                caseimportance='critical',
                 caselevel='component',
                 caseposneg='positive',
                 setup=None,
