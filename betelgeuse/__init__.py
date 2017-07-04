@@ -9,29 +9,20 @@ Polarion. Possible interactions:
   and jUnit XML file.
 * Creation of Test Runs based on a jUnit XML file.
 """
-import datetime
 import itertools
 import json
 import logging
 import re
 import ssl
 import time
-import traceback
+import warnings
 from collections import Counter
 from xml.dom import minidom
 from xml.etree import ElementTree
 from xml.parsers.expat import ExpatError
 
 import click
-from pylarion.exceptions import PylarionLibException
-from pylarion.work_item import (
-    Requirement,
-    TestCase,
-    TestStep,
-    TestSteps,
-)
 from pylarion.plan import Plan
-from pylarion.test_run import TestRun
 
 from betelgeuse import collector, parser
 
@@ -203,39 +194,6 @@ def map_steps(steps, expectedresults):
         return [(steps, expectedresults)]
 
 
-def generate_test_steps(steps_map):
-    """Generate a new TestSteps object.
-
-    Fill the steps information with the `steps_map` values.
-
-    :param steps_map: a list of tuples mapping to each step and
-        its expected result.
-    """
-    test_steps = TestSteps()
-    test_steps.keys = ['step', 'expectedResult']
-    steps = []
-    for item in steps_map:
-        test_step = TestStep()
-        test_step.values = list(item)
-        steps.append(test_step)
-    test_steps.steps = steps
-    return test_steps
-
-
-def parse_requirement_name(path):
-    """Return the Requirement name for a given path.
-
-    The path ``tests/path/to/test_my_test_module.py`` will produce the
-    requirement name ``My Test Module``.
-
-    :param path: path to a test module.
-    """
-    return (
-        path.split('/')[-1].replace('test_', '', 1).replace('.py', '')
-        .replace('_', ' ').title()
-    )
-
-
 def parse_junit(path):
     """Parse a jUnit XML file.
 
@@ -300,330 +258,27 @@ def parse_test_results(test_results):
     return Counter([test['status'] for test in test_results])
 
 
-def fetch_requirement(query, project, collect_only=False):
-    """Fetch or create a requirement.
+class AliasedGroup(click.Group):
+    """Make xml-<command> commands resolve to <command>."""
 
-    Return the fetched or created requirement object.
-    """
-    click.echo(
-        'Fetching requirement {0}.'.format(query))
-    if query in OBJ_CACHE['requirements'].keys():
-        return OBJ_CACHE['requirements'][query]
-    requirement = None
-    if not collect_only:
-        results = Requirement.query(
-            query,
-            fields=['title', 'work_item_id']
-        )
-        if len(results) > 0:
-            # As currently is not possible to get a single
-            # match for the title, make sure to not use a
-            # not intended Requirement.
-            for result in results:
-                if result.title == query or result.work_item_id == query:
-                    requirement = result
-    if requirement is None:
-        click.echo(
-            'Creating requirement {0}.'.format(query))
-        if not collect_only:
-            requirement = Requirement.create(
-                project,
-                query,
-                '',
-                reqtype='functional'
+    def get_command(self, ctx, cmd_name):
+        """Drop xml- prefix when getting the command."""
+        if cmd_name in ('xml-test-case', 'xml-test-run'):
+            new_cmd_name = cmd_name.lstrip('xml-')
+            warnings.warn(
+                'The command {} is renamed to {}, this alias will be removed '
+                'in a future version of Betelgeuse'
+                .format(cmd_name, new_cmd_name),
+                DeprecationWarning,
+                stacklevel=2
             )
-            requirement.status = 'approved'
-            requirement.update()
-    if query not in OBJ_CACHE['requirements'].keys():
-        OBJ_CACHE['requirements'][query] = requirement
-    return requirement
+            cmd_name = new_cmd_name
+        return super(AliasedGroup, self).get_command(ctx, cmd_name)
 
 
-def approve_test_case(test_case):
-    """Approve a test case if the running user is allowed to do so."""
-    approvers = [
-        approver.user_id
-        for approver in test_case.get_allowed_approvers()
-    ]
-    if test_case.logged_in_user_id in approvers:
-        approvee = test_case.logged_in_user_id
-        test_case.add_approvee(approvee)
-        test_case.edit_approval(approvee, 'approved')
-
-
-def add_test_case(path, test):
-    """Task that creates or updates Test Cases and manages their Requirement.
-
-    This task relies on ``OBJ_CACHE`` to get the collect_only and project
-    objects.
-
-    :param path: The path to the ``test``'s module.
-    :param test: A ``collector.TestFunction`` instance.
-    """
-    collect_only = OBJ_CACHE['collect_only']
-    project = OBJ_CACHE['project']
-
-    # Normalize all fields to lowercase
-    test.fields = {k.lower(): v for k, v in test.fields.items()}
-
-    # Fetch the test case id if the @Id tag is present otherwise generate a
-    # test_case_id based on the test Python import path
-    test_case_id = test.fields.get('id', generate_test_id(test))
-    if test.docstring:
-        if not type(test.docstring) == unicode:
-            test.docstring = test.docstring.decode('utf8')
-
-    automation_script = test.fields.get(
-        'automation_script',
-        OBJ_CACHE['automation_script_format'].format(
-            path=test.module_def.path, line_number=test.function_def.lineno
-        )
-    )
-    # Is the test automated? Acceptable values are:
-    # automated, manualonly, and notautomated
-    auto_status = test.fields.get(
-        'caseautomation',
-        'notautomated' if test.fields.get('status') else 'automated'
-    ).lower()
-    caseposneg = test.fields.get(
-        'caseposneg',
-        'negative' if 'negative' in test.name else 'positive'
-    ).lower()
-    subtype1 = test.fields.get(
-        'subtype1',
-        '-'
-    ).lower()
-    casecomponent = test.fields.get('casecomponent', '-').lower()
-    caseimportance = test.fields.get(
-        'caseimportance', 'medium').lower()
-    caselevel = test.fields.get('caselevel', 'component').lower()
-    description = test.fields.get('description', parser.parse_rst(
-        test.docstring,
-        parser.TableFieldListTranslator,
-    ))
-    setup = test.fields.get('setup')
-    status = test.fields.get('status', 'approved').lower()
-    testtype = test.fields.get(
-        'testtype',
-        'functional'
-    ).lower()
-    title = test.fields.get('title', test.name)
-    upstream = test.fields.get('upstream', 'no').lower()
-    steps = test.fields.get('steps')
-    expectedresults = test.fields.get('expectedresults')
-
-    if steps and expectedresults:
-        test_steps = generate_test_steps(
-            map_steps(steps, expectedresults))
-    else:
-        test_steps = None
-
-    results = []
-    if not collect_only:
-        results = TestCase.query(
-            test_case_id,
-            fields=[
-                'approvals',
-                'caseautomation',
-                'caseposneg',
-                'description',
-                'work_item_id',
-            ]
-        )
-    requirement_name = test.fields.get(
-        'requirement', parse_requirement_name(path))
-    if len(results) == 0:
-        click.echo(
-            'Creating test case {0} for requirement: {1}.'
-            .format(title, requirement_name)
-        )
-        if not collect_only:
-            test_case = TestCase.create(
-                project,
-                title,
-                description,
-                automation_script=automation_script,
-                caseautomation=auto_status,
-                casecomponent=casecomponent,
-                caseimportance=caseimportance,
-                caselevel=caselevel,
-                caseposneg=caseposneg,
-                setup=setup,
-                subtype1=subtype1,
-                test_case_id=test_case_id,
-                testtype=testtype,
-                upstream=upstream,
-            )
-            approve_test_case(test_case)
-            test_case.status = status
-            if test_steps:
-                test_case.test_steps = test_steps
-            test_case.update()
-        click.echo(
-            'Linking test case {0} to requirement: {1}.'
-            .format(title, requirement_name)
-        )
-        if not collect_only:
-            requirement = fetch_requirement(
-                requirement_name, project, collect_only)
-            test_case.add_linked_item(
-                requirement.work_item_id, 'verifies')
-    else:
-        click.echo(
-            'Updating test case {0} for requirement {1}.'
-            .format(title, requirement_name)
-        )
-        # Ensure that a single match for the Test Case is
-        # returned.
-        assert len(results) == 1
-        test_case = results[0]
-        if not collect_only and any((
-                len(test_case.approvals) == 0,
-                test_case.automation_script != automation_script,
-                test_case.caseautomation != auto_status,
-                test_case.casecomponent != casecomponent,
-                test_case.caseimportance != caseimportance,
-                test_case.caselevel != caselevel,
-                test_case.caseposneg != caseposneg,
-                test_case.description != description,
-                test_case.setup != setup,
-                test_case.status != status,
-                test_case.subtype1 != subtype1,
-                test_case.test_steps != test_steps,
-                test_case.testtype != testtype,
-                test_case.title != title,
-                test_case.upstream != upstream,
-        )):
-            if len(test_case.approvals) == 0:
-                approve_test_case(test_case)
-            test_case.automation_script = automation_script
-            test_case.caseautomation = auto_status
-            test_case.casecomponent = casecomponent
-            test_case.caseimportance = caseimportance
-            test_case.caselevel = caselevel
-            test_case.caseposneg = caseposneg
-            test_case.description = description
-            test_case.setup = setup
-            test_case.status = status
-            test_case.subtype1 = subtype1
-            test_case.testtype = testtype
-            test_case.title = title
-            test_case.upstream = upstream
-            if test_steps:
-                test_case.test_steps = test_steps
-            test_case.update()
-
-
-def add_test_record(result):
-    """Task that adds a test result to a test run.
-
-    This task relies on ``OBJ_CACHE`` to get the test run and user objects. The
-    object cache is needed since suds objects are not able to be pickled and it
-    is not possible to pass them to processes.
-    """
-    test_run = OBJ_CACHE['test_run']
-    user = OBJ_CACHE['user']
-    testcases = OBJ_CACHE['testcases']
-    junit_test_case_id = '{0}.{1}'.format(result['classname'], result['name'])
-    test_case_id = testcases.get(junit_test_case_id)
-    if not test_case_id:
-        click.echo(
-            'Missing ID information for test {0}, using junit test case id...'
-            .format(junit_test_case_id)
-        )
-        test_case_id = junit_test_case_id
-    test_case = TestCase.query(test_case_id)
-    if len(test_case) == 0:
-        click.echo(
-            'Was not able to find test case {0} with id {1}, skipping...'
-            .format(junit_test_case_id, test_case_id)
-        )
-        return
-    status = POLARION_STATUS[result['status']]
-    work_item_id = test_case[0].work_item_id
-    click.echo(
-        'Adding test record for test case {0} with status {1}.'
-        .format(work_item_id, status)
-    )
-    message = result.get('message', '')
-    if message and type(message) == unicode:
-        message = message.encode('ascii', 'xmlcharrefreplace')
-    try:
-        test_run.add_test_record_by_fields(
-            test_case_id=work_item_id,
-            test_result=status,
-            test_comment=message,
-            executed_by=user,
-            executed=datetime.datetime.now(),
-            duration=float(result.get('time', '0'))
-        )
-    except PylarionLibException as err:
-        click.echo('Skipping test case {0}.'.format(work_item_id))
-        click.echo(err, err=True)
-    except Exception as err:
-        click.echo(
-            'Error when adding test record for "{test_case_id}" with the '
-            'following information:\n'
-            'duration="{duration}"'
-            'executed="{executed}"\n'
-            'executed_by="{executed_by}"\n'
-            'test_result="{test_result}"\n'
-            'test_comment="{test_comment}"\n'
-            .format(
-                test_case_id=work_item_id,
-                test_result=status,
-                test_comment=message,
-                executed_by=user,
-                executed=datetime.datetime.now(),
-                duration=float(result.get('time', '0'))
-            )
-        )
-        click.echo(traceback.format_exc(), err=True)
-        raise
-
-
-@click.group()
+@click.group(cls=AliasedGroup)
 def cli():
     """Betelgeuse CLI command group."""
-
-
-@cli.command('test-case')
-@click.option(
-    '--path',
-    default='tests',
-    help='Path to the test module or directory.',
-    type=click.Path(exists=True),
-)
-@click.option(
-    '--collect-only',
-    help=('Not perform any operation on Polarion, just prints '
-          'collected information.'),
-    is_flag=True,
-)
-@click.option(
-    '--automation-script-format',
-    help=(r'The format for the automation-script field. The variables {path} '
-          'and {line_number} are available and will be expanded to the test '
-          'case module path and the line number where it\'s defined '
-          'respectively. Default: {path}#{line_number}'),
-    default='{path}#{line_number}',
-)
-@click.argument('project')
-def test_case(path, collect_only, automation_script_format, project):
-    """Sync test cases with Polarion."""
-    OBJ_CACHE['automation_script_format'] = automation_script_format
-    OBJ_CACHE['collect_only'] = collect_only
-    OBJ_CACHE['project'] = project
-    for path, tests in collector.collect_tests(path).items():
-        for test in tests:
-            try:
-                add_test_case(path, test)
-            except PylarionLibException as err:
-                title = test.fields.get('title', test.name)
-                click.echo(
-                    'Failed to add test case {0}::{1} due to {2}.'
-                    .format(path, title, err)
-                )
 
 
 @cli.command('test-plan')
@@ -706,97 +361,6 @@ def test_results(path):
         ['{0}: {1}'.format(*status) for status in test_summary.items()]
     ).title()
     click.echo(summary)
-
-
-@cli.command('test-run')
-@click.option(
-    '--path',
-    default='junit-results.xml',
-    help='Path to the jUnit XML file.',
-    type=click.Path(exists=True, dir_okay=False),
-)
-@click.option(
-    '--source-code-path',
-    help='Path to the source code for the jUnit results.',
-    type=click.Path(exists=True),
-)
-@click.option(
-    '--test-run-id',
-    default='test-run-{0}'.format(time.time()),
-    help='Test Run ID to be created/updated.',
-)
-@click.option(
-    '--test-run-type',
-    default='buildacceptance',
-    help='Test Run Type.',
-    type=click.Choice([
-        'buildacceptance',
-        'regression',
-        'featureverification',
-    ])
-)
-@click.option(
-    '--test-template-id',
-    default='Empty',
-    help='Test Template ID to create the Test Run.',
-)
-@click.option(
-    '--user',
-    default='betelgeuse',
-    help='User that is executing the Test Run.',
-)
-@click.option(
-    '--custom-fields',
-    help='Custom fields to be passed when creating a new test run.',
-    multiple=True,
-)
-@click.argument('project')
-def test_run(
-        path, source_code_path, test_run_id, test_run_type,
-        test_template_id, user, custom_fields, project):
-    """Execute a test run based on jUnit XML file."""
-    custom_fields = load_custom_fields(custom_fields)
-    test_run_id = re.sub(INVALID_CHARS_REGEX, '', test_run_id)
-    testcases = {
-        generate_test_id(test): test.fields.get('id')
-        for test in itertools.chain(
-                *collector.collect_tests(source_code_path).values()
-        )
-    }
-    results = parse_junit(path)
-    try:
-        test_run = TestRun(test_run_id, project_id=project)
-        click.echo('Test run {0} found.'.format(test_run_id))
-    except PylarionLibException as err:
-        click.echo(err, err=True)
-        click.echo('Creating test run {0}.'.format(test_run_id))
-        test_run = TestRun.create(
-            project, test_run_id, test_template_id, type=test_run_type,
-            **custom_fields)
-
-    update = False
-    if test_run.type != test_run_type:
-        test_run.type = test_run_type
-        update = True
-    for field, value in custom_fields.items():
-        if getattr(test_run, field) != value:
-            setattr(test_run, field, value)
-            click.echo(
-                'Test Run {0} updated with {1}={2}.'.format(
-                    test_run_id, field, value)
-            )
-            update = True
-    if update:
-        test_run.update()
-
-    OBJ_CACHE['test_run'] = test_run
-    OBJ_CACHE['user'] = user
-    OBJ_CACHE['testcases'] = testcases
-
-    TestRun.session.tx_begin()
-    for result in results:
-        add_test_record(result)
-    TestRun.session.tx_commit()
 
 
 def create_xml_property(name, value):
@@ -904,7 +468,7 @@ def create_xml_testcase(testcase, automation_script_format):
     return element
 
 
-@cli.command('xml-test-case')
+@cli.command('test-case')
 @click.option(
     '--automation-script-format',
     help=(r'The format for the automation-script field. The variables {path} '
@@ -939,7 +503,7 @@ def create_xml_testcase(testcase, automation_script_format):
 @click.argument('source-code-path', type=click.Path(exists=True))
 @click.argument('project')
 @click.argument('output-path')
-def xml_test_case(
+def test_case(
         automation_script_format, dry_run, lookup_method, response_property,
         source_code_path, project, output_path):
     """Generate an XML suited to be importer by the test-case importer.
@@ -980,7 +544,7 @@ def xml_test_case(
     et.write(output_path, encoding='utf-8', xml_declaration=True)
 
 
-@cli.command('xml-test-run')
+@cli.command('test-run')
 @click.option(
     '--custom-fields',
     help='Indicates to the importer which custom fields should be set. '
@@ -1046,7 +610,7 @@ def xml_test_case(
 @click.argument('user')
 @click.argument('project')
 @click.argument('output-path')
-def xml_test_run(
+def test_run(
         custom_fields, dry_run, lookup_method, no_include_skipped,
         response_property, status, test_run_id, test_run_template_id,
         test_run_title, test_run_type_id, junit_path, source_code_path, user,

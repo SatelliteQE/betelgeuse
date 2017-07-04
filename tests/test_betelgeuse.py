@@ -8,16 +8,11 @@ import re
 from click.testing import CliRunner
 from betelgeuse import (
     INVALID_CHARS_REGEX,
-    PylarionLibException,
-    add_test_case,
-    add_test_record,
     cli,
     create_xml_property,
-    generate_test_steps,
     load_custom_fields,
     map_steps,
     parse_junit,
-    parse_requirement_name,
     parse_test_results,
     validate_key_value_option,
 )
@@ -72,167 +67,6 @@ SINGLE_EXPECTEDRESULT = """<p>Single step expected result.</p>"""
 def cli_runner():
     """Return a `click`->`CliRunner` object."""
     return CliRunner()
-
-
-def test_add_test_case_create():
-    """Check if test case creation works."""
-    obj_cache = {
-        'collect_only': False,
-        'project': 'PROJECT',
-        'automation_script_format': '{path}@{line_number}'
-    }
-    with mock.patch.dict('betelgeuse.OBJ_CACHE', obj_cache):
-        with mock.patch.multiple(
-                'betelgeuse',
-                Requirement=mock.DEFAULT,
-                TestCase=mock.DEFAULT,
-        ) as patches:
-            patches['Requirement'].return_value = []
-            test = mock.MagicMock()
-            test.docstring = 'Test the name feature'
-            test.function_def.lineno = 10
-            test.module_def.path = 'path/to/test_module.py'
-            test.name = 'test_name'
-            test.parent_class = 'NameTestCase'
-            test.testmodule = 'path/to/test_module.py'
-            test.fields = {}
-            test.fields['description'] = '<p>This is sample description</p>\n'
-            # Add mixed case field key
-            test.fields['CaseImportance'] = 'critical'
-            add_test_case('path/to/test_module.py', test)
-            patches['Requirement'].query.assert_called_once_with(
-                'Module', fields=['title', 'work_item_id'])
-            patches['Requirement'].create.assert_called_once_with(
-                'PROJECT', 'Module', '', reqtype='functional')
-            patches['TestCase'].query.assert_called_once_with(
-                'path.to.test_module.NameTestCase.test_name',
-                fields=[
-                    'approvals',
-                    'caseautomation',
-                    'caseposneg',
-                    'description',
-                    'work_item_id',
-                ]
-            )
-            patches['TestCase'].create.assert_called_once_with(
-                'PROJECT',
-                'test_name',
-                '<p>This is sample description</p>\n',
-                automation_script='path/to/test_module.py@10',
-                caseautomation='automated',
-                casecomponent='-',
-                caseimportance='critical',
-                caselevel='component',
-                caseposneg='positive',
-                setup=None,
-                subtype1='-',
-                test_case_id='path.to.test_module.NameTestCase.test_name',
-                testtype='functional',
-                upstream='no',
-            )
-
-
-def test_add_test_record():
-    """Check if test record creation works."""
-    test_run = mock.MagicMock()
-    obj_cache = {
-        'test_run': test_run,
-        'user': 'testuser',
-        'testcases': {
-            'module.NameTestCase.test_name':
-            'caffa7b0-fb9e-430b-903f-3f37fa28e0da',
-        },
-    }
-    with mock.patch.dict('betelgeuse.OBJ_CACHE', obj_cache):
-        with mock.patch.multiple(
-                'betelgeuse',
-                TestCase=mock.DEFAULT,
-                collector=mock.DEFAULT,
-                datetime=mock.DEFAULT,
-        ) as patches:
-            test_case = mock.MagicMock()
-            patches['TestCase'].query.return_value = [test_case]
-            test_function = mock.MagicMock()
-            test_function.testmodule = 'module.py'
-            test_function.parent_class = 'NameTestCase'
-            test_function.name = 'test_name'
-            patches['collector'].get_tests.return_value = {
-                'module.py': [test_function],
-            }
-            add_test_record({
-                'classname': 'module.NameTestCase',
-                'message': u'Test failed because it not worked',
-                'name': 'test_name',
-                'status': 'failure',
-                'time': '3.1415',
-            })
-            test_run.add_test_record_by_fields.assert_called_once_with(
-                duration=3.1415,
-                executed=patches['datetime'].datetime.now(),
-                executed_by='testuser',
-                test_case_id=test_case.work_item_id,
-                test_comment='Test failed because it not worked',
-                test_result='failed'
-            )
-
-
-def test_add_test_record_unexpected_exception():
-    """Check if test record creation reraise unexpected exceptions."""
-    class UnexpectedException(Exception):
-        """Some unexpected exception."""
-
-        pass
-    test_run = mock.MagicMock()
-    test_run.add_test_record_by_fields.side_effect = UnexpectedException(
-        'UnexpectedException')
-    obj_cache = {
-        'test_run': test_run,
-        'user': 'testuser',
-        'testcases': {
-            'module.NameTestCase.test_name':
-            'caffa7b0-fb9e-430b-903f-3f37fa28e0da',
-        },
-    }
-    with mock.patch.dict('betelgeuse.OBJ_CACHE', obj_cache):
-        with mock.patch.multiple(
-                'betelgeuse',
-                TestCase=mock.DEFAULT,
-                collector=mock.DEFAULT,
-                datetime=mock.DEFAULT,
-        ) as patches:
-            test_case = mock.MagicMock()
-            patches['TestCase'].query.return_value = [test_case]
-            test_function = mock.MagicMock()
-            test_function.testmodule = 'module.py'
-            test_function.parent_class = 'NameTestCase'
-            test_function.name = 'test_name'
-            patches['collector'].get_tests.return_value = {
-                'module.py': [test_function],
-            }
-            with pytest.raises(UnexpectedException) as excinfo:
-                add_test_record({
-                    'classname': 'module.NameTestCase',
-                    'message': u'Test failed because it not worked',
-                    'name': 'test_name',
-                    'status': 'failure',
-                    'time': '3.1415',
-                })
-            assert excinfo.value.message == 'UnexpectedException'
-
-
-def test_generate_test_steps():
-    """Check if test step generation works."""
-    steps = [('Step1', 'Result1'), ('Step2', 'Result2')]
-    with mock.patch.multiple(
-            'betelgeuse',
-            TestSteps=mock.DEFAULT,
-            TestStep=mock.DEFAULT,
-    ) as patches:
-        patches['TestStep'].side_effect = [mock.MagicMock(), mock.MagicMock()]
-        test_steps = generate_test_steps(steps)
-    assert test_steps.keys == ['step', 'expectedResult']
-    for step, expected in zip(test_steps.steps, steps):
-        assert step.values == list(expected)
 
 
 def test_load_custom_fields():
@@ -307,12 +141,6 @@ def test_invalid_test_run_chars_regex():
     assert re.sub(INVALID_CHARS_REGEX, '', invalid_test_run_id) == ''
 
 
-def test_parse_requirement_name():
-    """Check if parsing requirement name works."""
-    assert parse_requirement_name(
-        'tests/path/to/test_my_test_module.py') == 'My Test Module'
-
-
 def test_parse_test_results():
     """Check if parsing test results works."""
     test_results = [
@@ -352,56 +180,6 @@ def test_parse_test_results():
     assert summary['failure'] == 1
     assert summary['skipped'] == 1
     assert summary['error'] == 1
-
-
-def test_test_case(cli_runner):
-    """Check if test case command works."""
-    with cli_runner.isolated_filesystem():
-        with open('test_something.py', 'w') as handler:
-            handler.write(TEST_MODULE)
-        with mock.patch.multiple(
-                'betelgeuse',
-                TestCase=mock.DEFAULT,
-                add_test_case=mock.DEFAULT,
-                collector=mock.DEFAULT,
-        ) as patches:
-            result = cli_runner.invoke(
-                cli,
-                ['test-case', '--path', 'test_something.py', 'PROJECT']
-            )
-            assert result.exit_code == 0
-            test_function = mock.MagicMock()
-            tests = {
-                'test_something.py': [test_function]
-            }
-            patches['collector'].collect_tests.items.return_value = tests
-            patches['collector'].collect_tests('test_something.py')
-            patches['add_test_case'].called_once_with(tests)
-
-
-def test_test_case_skip_on_failure(cli_runner):
-    """Check if test case create/update skips on failures."""
-    with cli_runner.isolated_filesystem():
-        with open('test_something.py', 'w') as handler:
-            handler.write(TEST_MODULE)
-        with mock.patch.multiple(
-                'betelgeuse',
-                add_test_case=mock.DEFAULT,
-                collector=mock.DEFAULT,
-        ) as patches:
-            test_function = mock.MagicMock()
-            tests = {
-                'test_something.py': [test_function]
-            }
-            patches['collector'].collect_tests.return_value = tests
-            patches['add_test_case'].side_effect = PylarionLibException
-            result = cli_runner.invoke(
-                cli,
-                ['test-case', '--path', 'test_something.py', 'PROJECT']
-            )
-            assert result.exit_code == 0
-            test_function.fields.get.assert_called_once_with(
-                'title', test_function.name)
 
 
 def test_test_plan(cli_runner):
@@ -531,77 +309,14 @@ def test_test_results_default_path(cli_runner):
         assert 'Skipped: 1\n' in result.output
 
 
-def test_test_run(cli_runner):
-    """Check if test run command works."""
-    with cli_runner.isolated_filesystem():
-        with open('junit_report.xml', 'w') as handler:
-            handler.write(JUNIT_XML)
-        with mock.patch.multiple(
-                'betelgeuse',
-                TestRun=mock.DEFAULT,
-                add_test_record=mock.DEFAULT,
-                collector=mock.DEFAULT,
-        ) as patches:
-            result = cli_runner.invoke(
-                cli,
-                ['test-run', '--path', 'junit_report.xml', 'PROJECT']
-            )
-            assert result.exit_code == 0
-            patches['TestRun'].session.tx_begin.assert_called_once_with()
-            patches['TestRun'].session.tx_commit.assert_called_once_with()
-            calls = [mock.call(r) for r in parse_junit('junit_report.xml')]
-            patches['add_test_record'].assert_has_calls(calls)
-
-
-def test_test_run_new_test_run(cli_runner):
-    """Check if test run command works for a new test run."""
-    with cli_runner.isolated_filesystem():
-        with open('junit_report.xml', 'w') as handler:
-            handler.write(JUNIT_XML)
-        with mock.patch.multiple(
-                'betelgeuse',
-                TestRun=mock.DEFAULT,
-                add_test_record=mock.DEFAULT,
-                collector=mock.DEFAULT,
-        ) as patches:
-            patches['TestRun'].side_effect = PylarionLibException
-
-            result = cli_runner.invoke(
-                cli,
-                [
-                    'test-run',
-                    '--path',
-                    'junit_report.xml',
-                    '--test-run-id',
-                    'testrunid',
-                    '--custom-fields',
-                    '{"arch": "x86_64", "isautomated": true}',
-                    'PROJECT'
-                ]
-            )
-            assert result.exit_code == 0
-            patches['TestRun'].create.assert_called_once_with(
-                'PROJECT',
-                'testrunid',
-                'Empty',
-                arch='x86_64',
-                isautomated=True,
-                type='buildacceptance',
-            )
-            patches['TestRun'].session.tx_begin.assert_called_once_with()
-            patches['TestRun'].session.tx_commit.assert_called_once_with()
-            calls = [mock.call(r) for r in parse_junit('junit_report.xml')]
-            patches['add_test_record'].assert_has_calls(calls)
-
-
 def test_create_xml_property():
     """Check if create_xml_property creates the expected XML tag."""
     generated = ElementTree.tostring(create_xml_property('name', 'value'))
     assert generated == '<property name="name" value="value" />'
 
 
-def test_xml_test_run(cli_runner):
-    """Check if xml test run command works."""
+def test_test_run(cli_runner):
+    """Check if test run command works."""
     with cli_runner.isolated_filesystem():
         with open('junit_report.xml', 'w') as handler:
             handler.write(JUNIT_XML)
@@ -629,7 +344,7 @@ def test_xml_test_run(cli_runner):
             result = cli_runner.invoke(
                 cli,
                 [
-                    'xml-test-run',
+                    'test-run',
                     '--dry-run',
                     '--no-include-skipped',
                     '--custom-fields', 'field=value',
