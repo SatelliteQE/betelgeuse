@@ -23,6 +23,7 @@ from xml.parsers.expat import ExpatError
 
 import click
 from pylarion.plan import Plan
+from pylarion.work_item import Requirement
 
 from betelgeuse import collector, parser
 
@@ -279,6 +280,46 @@ class AliasedGroup(click.Group):
 @click.group(cls=AliasedGroup)
 def cli():
     """Betelgeuse CLI command group."""
+
+
+@cli.command('requirement')
+@click.argument('source-code-path', type=click.Path(exists=True))
+@click.argument('project')
+def requirement(source_code_path, project):
+    """Create and/or update requirements in Polarion."""
+    requirements = []
+    source_testcases = itertools.chain(
+        *collector.collect_tests(source_code_path).values())
+    for testcase in source_testcases:
+        fields = {k.lower(): v for k, v in testcase.fields.items()}
+        if ('requirement' in fields and
+                fields['requirement'] not in requirements):
+            requirement_title = fields['requirement']
+            results = Requirement.query(
+                requirement_title,
+                fields=['status', 'title']
+            )
+            requirement = None
+            for result in results:
+                if result.title == requirement_title:
+                    requirement = result
+                    break
+            if requirement is None:
+                click.echo(
+                    u'Creating requirement {0}.'.format(fields['requirement'])
+                )
+                requirement = Requirement.create(
+                    project,
+                    requirement_title,
+                    '',
+                    reqtype='functional'
+                )
+            if requirement.status != 'approved':
+                click.echo(
+                    u'Approving requirement {0}.'.format(requirement.title)
+                )
+                requirement.status = 'approved'
+                requirement.update()
 
 
 @cli.command('test-plan')
