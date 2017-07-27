@@ -1,3 +1,4 @@
+========================
 Betelgeuse documentation
 ========================
 
@@ -6,7 +7,7 @@ Betelgeuse documentation
 
 
 What is Betelgeuse?
-```````````````````
+===================
 
 Betelgeuse is a python program that reads standard Python test cases and offers
 tools to interact with Polarion. Possible interactions are:
@@ -18,7 +19,7 @@ tools to interact with Polarion. Possible interactions are:
 Betelgeuse uses Pylarion project to communicate with Polarion.
 
 Prerequisites
-`````````````
+=============
 
 Login to Polarion in a browser to check if the login user has permissions to
 create/update the following entities in Polarion:
@@ -33,7 +34,7 @@ on the allowed approvers list, and, if that is the case, will set the approvee
 and approve the test case.
 
 Quick Start
-```````````
+===========
 
 1. Betelgeuse uses Pylarion to interact with Polarion. Install Pylarion from its
    source.
@@ -63,7 +64,7 @@ Quick Start
    .. note:: It is always recommended to use python virtual environment
 
 How it works?
-`````````````
+=============
 
 Assuming that you have a ``test_user.py`` file with the following content:
 
@@ -141,7 +142,7 @@ Polarion fields and custom fields).
            uuid.uuid4()
 
 How steps and expectedresults work together
-+++++++++++++++++++++++++++++++++++++++++++
+-------------------------------------------
 
 Betelgeuse will look for some fields when parsing the test cases but there is
 an special case: when both ``steps`` and ``expectedresults`` are defined
@@ -191,7 +192,7 @@ will be the second item on ``steps`` and the second item on
     ``expectedresults``.
 
 Usage Examples
-``````````````
+==============
 
 .. note::
 
@@ -205,14 +206,14 @@ Usage Examples
   report ID errors. More info can be found in `test-run command`_ section
 
 help command
-++++++++++++
+------------
 
 .. code-block:: console
 
     $ betelgeuse --help
 
 requirement command
-+++++++++++++++++++
+-------------------
 
 Creates/updates requirements in Polarion. This command will grab all
 requirements (defined by the ``:requirement:`` field) and will create/update
@@ -228,61 +229,37 @@ them. Also it will approve the requirements which are not approved yet.
     to run this before importing the test cases.
 
 test-case command
-+++++++++++++++++
+-----------------
 
-Creates/Updates test cases in Polarion. This command performs the following
-steps:
+The ``test-case`` command generates an XML file suited to be imported by the
+Test Case XML Importer. It reads the Python test suite source code and
+generates a XML file with all the information necessary for the Test Case XML
+Importer.
 
-- Walk a ``path`` and collect the test methods and functions defined on test
-  modules. Test modules are the ones which name matches either ``test_*.py`` or
-  ``*_test.py``.
-- For each collected test, the following actions are performed:
+The ``test-case`` command requires you to pass:
 
-    - If ``:id:`` field is present in the test case, it is used as the test case
-      id. Or it is derived automatically based on the test Python import path.
-    - If ``:requirement:`` field is present in the test docstring, it will be
-      used as the requirement name. Otherwise it is derived from the test
-      module name. For example, if the test module name is
-      ``test_login_example``, then the requirement name is ``Login Example``.
-    - Other fields are going to be populated if present on the test docstring.
-    - The derived requirement name is queried in Polarion to check if it is
-      already present. Otherwise it is created.
-    - The test case is queried with ``:id:`` field in Polarion. If the test
-      case is already present, it will be updated. Otherwise, it will be
-      created and linked to the requirement.
-
-.. code-block:: console
-
-    $ betelgeuse test-case --path sample_project/tests/ PROJECT_CLOUD
-
-    Creating test case test_login_1 for requirement: Login Example.
-    Linking test case test_login_1 to requirement: Login Example.
-    Fetching requirement Login Example.
-    Creating requirement Login Example.
+* The path to the Python test suite source code
+* The Polarion project ID
+* The output XML file path (it will override if the file already exists)
 
 .. note::
 
-  * ``PROJECT_CLOUD`` is the Polarion project id and not the project name. This
-    can be found in Polarion -> Settings (icon) -> Administration -> ID.
-  * ``path`` is the path of the folder which has the test cases source code.
+    Even though ``--response-property`` is optional, it is highly recommended
+    to pass it because will be easier to monitor the importer messages (which
+    is not handled by Betelgeuse).
 
-.. warning::
+The example below shows how to run the command:
 
-   Are you not sure if you are using this command correctly? No problem! The
-   test-case command can be used with ``--collect-only`` option which runs in a
-   dry run mode and shows the changes it would have made wihtout actually making
-   them:
+.. code-block:: console
 
-     .. code-block:: console
-
-         $ betelgeuse test-case --path sample_project/tests/ PROJECT_CLOUD \
-         --collect-only
-
-         Creating test case test_login_1 for requirement: Login Example.
-         Linking test case test_login_1 to requirement: Login Example.
+    $ betelgeuse test-case \
+        --automation-script-format "https://github.com/SatelliteQE/betelgeuse/tree/master/{path}#L{line_number}" \
+        sample_project/tests \
+        PROJECT \
+        betelgeuse-test-cases.xml
 
 test-plan command
-+++++++++++++++++
+-----------------
 
 The test-plan command allows creating a parent or child test plans. This is
 done by using --parent-name option.
@@ -350,7 +327,7 @@ existing test plan:
     Test Plan iteration 1 updated with status=done.
 
 test-results command
-++++++++++++++++++++
+--------------------
 
 Gives a nice summary of test cases/results in the given jUnit XML file.
 
@@ -362,70 +339,45 @@ Gives a nice summary of test cases/results in the given jUnit XML file.
     Passed: 1
 
 test-run command
-++++++++++++++++
+----------------
 
-Creates/Updates a test run in Polarion using the information in the given jUnit
-XML file. This command performs the following steps:
+The ``test-run`` command generates an XML file suited to be imported by the
+Test Run XML importer. It takes:
 
-- Parses the jUnit XML file to read all the test cases and their run statuses.
-- Creates a new test run or updates an existing run with all the parsed test
-  case items and their run statuses.
+* A valid xUnit XML file
+* A Python test suite where test case IDs can be found
+
+And generates a resulting XML file with all the information necessary for the
+Test Run XML importer.
+
+The ``test-run`` command only requires you to pass:
+
+* The path to the xUnit XML file
+* The path to the Python test suite source code
+* The Polarion user ID
+* The Polarion project ID
+* The output XML file path (it will override if the file already exists)
+
+.. note::
+
+    Even though ``--response-property`` is optional, it is highly recommended
+    to pass it because will be easier to monitor the importer messages (which
+    is not handled by Betelgeuse).
+
+The example below shows how to run ``test-run`` command:
 
 .. code-block:: console
 
-    $ betelgeuse test-run --path sample_project/results/sample-junit-result.xml \
-    --test-run-id regression_test_run_1 --test-template-id Empty --user \
-    testuser1 --source-code-path sample_project/tests/ PROJECT_CLOUD
+    $ betelgeuse test-run \
+        --response-property property_key=property_value \
+        sample_project/results/sample-junit-result.xml \
+        sample_project/tests/ \
+        testuser \
+        PROJECT \
+        betelgeuse-test-run.xml
 
-    Test run regression_test_run_1 found.
-    Adding test record for test case PROJECT_CLOUD-12655 with status passed.
-
-At this time, it is very important to understand how Betelgeuse links the items
-in the jUnit XML report to the actual source code. To help in this process,
-it is a must that both the test runner and Betelgeuse get called in the same
-directory. Consider the following jUnit XML report which just has one test case
-for easy understanding:
-
-.. code-block:: xml
-
-    <testcase classname="sample_project.tests.test_login_example.LoginTestCase"
-    file="sample_project/tests/test_login_example.py" line="421" name="test_login_1"
-    time="694.768339396">...</testcase>
-
-With the above report, Betelgeuse performs the following:
-
-- Derives the test method's name by joining its ``classname`` and ``name``
-  attributes with a dot. In this case, it becomes
-  ``sample_project.tests.test_login_example.LoginTestCase.test_login_1``.
-- Looks at the ``--source-code-path`` option value and does the following:
-
-    - converts every test module path into a python import path. For example:
-      ``sample_project/tests/test_login_example.py`` will become
-      ``sample_project.tests.test_login_example``.
-    - All test methods or functions are then appended. For example, the
-      method ``test_login_1`` inside the class ``LoginTestCase`` will be
-      generated as
-      ``sample_project.tests.test_login_example.LoginTestCase.test_login_1``.
-
-- The information obtained from both the steps above are compared and ``:ID``
-  field of the test method or function is identified. This id is then queried
-  against Polarion for a matching work item id (Polarion test case). Once the
-  work item id is identified, Betelgeuse will add the result for this test
-  case work item id in the test run.
-
-.. warning::
-
-  - If Betelgeuse is not able to find the ``:ID`` field for a test method, it
-    will default to the Python import path. In our current example, it will be
-    ``sample_project.tests.test_login_example.LoginTestCase.test_login_1``.
-  - If no result is returned when querying Polarion for a matching test case,
-    then the result will be skipped and the processing continues to the next
-    test case in the jUnit XML file. For this reason, it is highly recommended
-    to run ``test-command`` command before ``test-run`` to make sure all
-    required test cases are created/updated accordingly.
-
-The test-run command allows setting custom fields in order to better define the
-environment. There are two ways to define custom fields:
+Polarion custom fields can be set by using the ``--custom-fields`` option.
+There are two ways to define custom fields:
 
 ``key=value`` format
     This a shortcut when you want to define plain strings as the value of a
@@ -440,114 +392,54 @@ Example using ``key=value`` format:
 .. code-block:: console
 
     $ betelgeuse test-run \
-        --path sample_project/results/sample-junit-result.xml \
-        --test-run-id regression_test_run_1 \
-        --test-template-id Empty
-        --user testuser1 \
-        --source-code-path sample_project/tests/ \
         --custom-fields arch=x8664 \
         --custom-fields variant=server \
-        PROJECT_CLOUD
+        --response-property property_key=property_value \
+        sample_project/results/sample-junit-result.xml \
+        sample_project/tests/ \
+        testuser \
+        PROJECT \
+        betelgeuse-test-run.xml
 
 Example using JSON format:
 
 .. code-block:: console
 
     $ betelgeuse test-run \
-        --path sample_project/results/sample-junit-result.xml \
-        --test-run-id regression_test_run_1 \
-        --test-template-id Empty
-        --user testuser1 \
-        --source-code-path sample_project/tests/ \
-        --custom-fields '{"isautomated":true,"arch":"x8664"}' \
-        PROJECT_CLOUD
-
-.. warning::
-
-    Make sure to pass the right value for the custom fields as Betelgeuse does
-    not validate them. If an unexpected value is found, the command will fail
-    with a stack trace showing the error.
-
-xml-test-case command
-+++++++++++++++++++++
-
-The xml-test-case command generates an XML file suited to be imported by the
-Test Case XML Importer. It reads the Python test suite source code and
-generates a XML file with all the information necessary for the Test Case XML
-Importer.
-
-The xml-test-command command requires you to pass:
-
-* The path to the Python test suite source code
-* The Polarion project ID
-* The output XML file path (it will override if the file already exists)
-
-.. note::
-
-    Even though ``--response-property`` is optional, it is highly recommended
-    to pass it because will be easier to monitor the importer messages (which
-    is not handled by Betelgeuse).
-
-The example below shows how to run xml-test-case command:
-
-.. code-block:: console
-
-    $ betelgeuse xml-test-case \
-        --automation-script-format "https://github.com/SatelliteQE/betelgeuse/tree/master/{path}#L{line_number}" \
-        sample_project/tests \
-        PROJECT \
-        output.xml
-
-xml-test-run command
-++++++++++++++++++++
-
-The xml-test-run command generates an XML file suited to be imported by the
-Test Run XML importer. It takes:
-
-* A valid xUnit XML file
-* A Python test suite where test case IDs can be found
-
-And generates a resulting XML file with all the information necessary for the
-Test Run XML importer.
-
-The xml-test-run command only requires you to pass:
-
-* The path to the xUnit XML file
-* The path to the Python test suite source code
-* The Polarion user ID
-* The Polarion project ID
-* The output XML file path (it will override if the file already exists)
-
-.. note::
-
-    Even though ``--response-property`` is optional, it is highly recommended
-    to pass it because will be easier to monitor the importer messages (which
-    is not handled by Betelgeuse).
-
-The example below shows how to run xml-test-run command:
-
-.. code-block:: console
-
-    $ betelgeuse xml-test-run \
+        --custom-fields '{"isautomated":"true","arch":"x8664"}' \
         --response-property property_key=property_value \
         sample_project/results/sample-junit-result.xml \
         sample_project/tests/ \
         testuser \
         PROJECT \
-        output.xml
-
-The xml-test-run command can set test run custom fields.  The
-``--custom-fields`` option can be used with a ``key=value`` format or a JSON
-format as explained in `test-run command`_ section.
+        betelgeuse-test-run.xml
 
 .. warning::
 
     Make sure to pass the the custom field ID (same as in Polarion) and its
-    value. Make sure to pass custom field values as string since they will be
+    value. Also, pass custom field values as string since they will be
     converted to XML where there is no type information.
 
+xml-test-case command
+---------------------
+
+Alias to the `test-case command`_.
+
+.. warning::
+
+    This alias is deprecated and will be removed on a future version.
+
+xml-test-run command
+--------------------
+
+Alias to the `test-run command`_.
+
+.. warning::
+
+    This alias is deprecated and will be removed on a future version.
+
 Case Study - A real world sample Test Case
-```````````````````````````````````````````
+===========================================
 
 Field list fields can be used to provide more information about a test case.
 The more information one provides via these fields, the more accurate the data
