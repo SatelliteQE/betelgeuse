@@ -211,6 +211,22 @@ help command
 
     $ betelgeuse --help
 
+requirement command
++++++++++++++++++++
+
+Creates/updates requirements in Polarion. This command will grab all
+requirements (defined by the ``:requirement:`` field) and will create/update
+them. Also it will approve the requirements which are not approved yet.
+
+.. code-block:: console
+
+    $ betelgeuse requirement sample_project/tests/ PROJECT_CLOUD
+
+.. note::
+
+    Requirements must be created in order to link test cases to them. Make sure
+    to run this before importing the test cases.
+
 test-case command
 +++++++++++++++++
 
