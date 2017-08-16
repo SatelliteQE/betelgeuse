@@ -25,7 +25,7 @@ import click
 from pylarion.plan import Plan
 from pylarion.work_item import Requirement
 
-from betelgeuse import collector, parser
+from betelgeuse import collector, config, parser
 
 
 logging.captureWarnings(True)
@@ -46,38 +46,6 @@ JUNIT_TEST_STATUS = ['error', 'failure', 'skipped']
 
 # Cache for shared objects
 OBJ_CACHE = {'requirements': {}}
-
-TESTCASE_CUSTOM_FIELDS = (
-    'arch',
-    'automation_script',
-    'caseautomation',
-    'casecomponent',
-    'caseimportance',
-    'caselevel',
-    'caseposneg',
-    'environment1',
-    'setup',
-    'subcomponent',
-    'subtype1',
-    'subtype2',
-    'tags',
-    'tcmsarguments',
-    'tcmsbug',
-    'tcmscaseid',
-    'tcmscategory',
-    'tcmscomponent',
-    'tcmsnotes',
-    'tcmsplan',
-    'tcmsreference',
-    'tcmsrequirement',
-    'tcmsscript',
-    'tcmstag',
-    'teardown',
-    'testtier',
-    'testtype',
-    'upstream',
-    'variant',
-)
 
 
 def validate_key_value_option(ctx, param, value):
@@ -277,9 +245,18 @@ class AliasedGroup(click.Group):
         return super(AliasedGroup, self).get_command(ctx, cmd_name)
 
 
+pass_config = click.make_pass_decorator(config.BetelgeuseConfig, ensure=True)
+
+
 @click.group(cls=AliasedGroup)
-def cli():
+@click.option(
+    '--config-module',
+    envvar='BETELGEUSE_CONFIG_MODULE'
+)
+@click.pass_context
+def cli(ctx, config_module):
     """Betelgeuse CLI command group."""
+    ctx.obj = config.BetelgeuseConfig(config_module)
 
 
 @cli.command('requirement')
@@ -412,12 +389,13 @@ def create_xml_property(name, value):
     return element
 
 
-def create_xml_testcase(testcase, automation_script_format):
+def create_xml_testcase(config, testcase, automation_script_format):
     """Create an XML testcase element.
 
     The element will be in the format to be used by the XML test case importer.
     """
-    fields = {k.lower(): v for k, v in testcase.fields.items()}
+    testcase.fields = {k.lower(): v for k, v in testcase.fields.items()}
+    fields = testcase.fields.copy()
     element = ElementTree.Element('testcase')
     element.set('id', fields.pop('id', generate_test_id(testcase)))
     # TODO: set other attributes assignee-id, due-date, initial-estimate
@@ -425,12 +403,15 @@ def create_xml_testcase(testcase, automation_script_format):
         if not type(testcase.docstring) == unicode:
             testcase.docstring = testcase.docstring.decode('utf8')
 
-    fields['title'] = fields.get(
-        'title',
-        testcase.name
-    )
+    title = fields.get('title')
+    if title is None:
+        default = getattr(config, 'DEFAULT_TITLE_VALUE', None)
+        if callable(default):
+            default = default(testcase)
+        if default is not None:
+            fields['title'] = default
     title = ElementTree.Element('title')
-    title.text = fields.pop('title')
+    title.text = fields['title']
     element.append(title)
     fields['description'] = fields.get(
         'description',
@@ -468,38 +449,30 @@ def create_xml_testcase(testcase, automation_script_format):
         element.append(test_steps)
 
     custom_fields = ElementTree.Element('custom-fields')
+    for field in config.TESTCASE_CUSTOM_FIELDS:
+        value = fields.get(field)
+        if value is None:
+            default = getattr(
+                config, 'DEFAULT_{}_VALUE'.format(field.upper()), None)
+            if callable(default):
+                default = default(testcase)
+            if default is not None:
+                fields[field] = default
+                testcase.fields[field] = default
 
-    fields['caseautomation'] = fields.pop(
-        'caseautomation',
-        'notautomated' if fields.pop('status', None) else 'automated'
-    ).lower()
-    fields['caseposneg'] = fields.pop(
-        'caseposneg',
-        'negative' if 'negative' in testcase.name else 'positive'
-    ).lower()
-    fields['subtype1'] = fields.pop(
-        'subtype1',
-        '-'
-    ).lower()
-    fields['casecomponent'] = fields.pop(
-        'casecomponent', '-').lower()
-    fields['caseimportance'] = fields.pop(
-        'caseimportance', 'medium').lower()
-    fields['caselevel'] = fields.pop(
-        'caselevel', 'component').lower()
-    fields['setup'] = fields.pop('setup', None)
-    fields['testtype'] = fields.pop(
-        'testtype',
-        'functional'
-    ).lower()
-    fields['upstream'] = fields.pop('upstream', 'no').lower()
+    for field in fields.keys():
+        transform_func = getattr(
+            config, 'TRANSFORM_{}_VALUE'.format(field.upper()), None)
+        if callable(transform_func):
+            fields[field] = transform_func(fields[field], testcase)
+
     fields['automation_script'] = automation_script_format.format(
         path=testcase.module_def.path,
         line_number=testcase.function_def.lineno,
     )
 
     for key, value in fields.items():
-        if value is None or key not in TESTCASE_CUSTOM_FIELDS:
+        if value is None or key not in config.TESTCASE_CUSTOM_FIELDS:
             continue
         custom_field = ElementTree.Element('custom-field')
         custom_field.set('id', key)
@@ -544,9 +517,10 @@ def create_xml_testcase(testcase, automation_script_format):
 @click.argument('source-code-path', type=click.Path(exists=True))
 @click.argument('project')
 @click.argument('output-path')
+@pass_config
 def test_case(
-        automation_script_format, dry_run, lookup_method, response_property,
-        source_code_path, project, output_path):
+        config, automation_script_format, dry_run, lookup_method,
+        response_property, source_code_path, project, output_path):
     """Generate an XML suited to be importer by the test-case importer.
 
     This will read the source code at SOURCE_CODE_PATH in order to capture the
@@ -579,7 +553,7 @@ def test_case(
         *collector.collect_tests(source_code_path).values())
     for testcase in source_testcases:
         testcases.append(
-            create_xml_testcase(testcase, automation_script_format))
+            create_xml_testcase(config, testcase, automation_script_format))
 
     et = ElementTree.ElementTree(testcases)
     et.write(output_path, encoding='utf-8', xml_declaration=True)

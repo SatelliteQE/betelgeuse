@@ -534,3 +534,10 @@ level* or at the *test case level*. Using the example above, since
 ``test_positive_create_car`` has its own *caseimportance* field defined,
 Betelgeuse will use its value of *Medium* for this test case alone while all
 other test cases will have a value of *High*, derived from the module.
+
+Advanced Usage
+==============
+
+Betelgeuse allows configuring the field processing to your own needs, check the
+:doc:`Betelgeuse Configuration Module <config>` documentation for more
+information.

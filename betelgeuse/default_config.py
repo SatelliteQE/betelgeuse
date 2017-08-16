@@ -1,0 +1,85 @@
+"""Default Betelgeuse configuration."""
+
+
+####################
+# Helper functions #
+####################
+
+def _get_default_title(testcase):
+    """Return the default value for title field."""
+    return testcase.name
+
+
+def _get_default_caseposneg(testcase):
+    """Return the default value for caseposneg custom field."""
+    return 'negative' if 'negative' in testcase.name.lower() else 'positive'
+
+
+def _transform_to_lower(value, testcase):
+    """Transform a field value to lower case."""
+    return value.lower()
+
+
+#################
+# Custom Fields #
+#################
+
+#: Default testcase custom fields
+TESTCASE_CUSTOM_FIELDS = (
+    'arch',
+    'automation_script',
+    'caseautomation',
+    'casecomponent',
+    'caseimportance',
+    'caselevel',
+    'caseposneg',
+    'environment1',
+    'setup',
+    'subcomponent',
+    'subtype1',
+    'subtype2',
+    'tags',
+    'tcmsarguments',
+    'tcmsbug',
+    'tcmscaseid',
+    'tcmscategory',
+    'tcmscomponent',
+    'tcmsnotes',
+    'tcmsplan',
+    'tcmsreference',
+    'tcmsrequirement',
+    'tcmsscript',
+    'tcmstag',
+    'teardown',
+    'testtier',
+    'testtype',
+    'upstream',
+    'variant',
+)
+
+########################
+# Default field values #
+########################
+
+DEFAULT_CASEAUTOMATION_VALUE = 'automated'
+DEFAULT_CASECOMPONENT_VALUE = '-'
+DEFAULT_CASEIMPORTANCE_VALUE = 'medium'
+DEFAULT_CASELEVEL_VALUE = 'component'
+DEFAULT_CASEPOSNEG_VALUE = _get_default_caseposneg
+DEFAULT_SUBTYPE1_VALUE = '-'
+DEFAULT_TESTTYPE_VALUE = 'functional'
+DEFAULT_TITLE_VALUE = _get_default_title
+DEFAULT_UPSTREAM_VALUE = 'no'
+
+####################################
+# Value transformation definitions #
+####################################
+
+TRANSFORM_CASEAUTOMATION_VALUE = _transform_to_lower
+TRANSFORM_CASECOMPONENT_VALUE = _transform_to_lower
+TRANSFORM_CASEIMPORTANCE_VALUE = _transform_to_lower
+TRANSFORM_CASELEVEL_VALUE = _transform_to_lower
+TRANSFORM_CASEPOSNEG_VALUE = _transform_to_lower
+TRANSFORM_SUBTYPE1_VALUE = _transform_to_lower
+TRANSFORM_TESTTYPE_VALUE = _transform_to_lower
+TRANSFORM_UPSTREAM_VALUE = _transform_to_lower

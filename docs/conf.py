@@ -45,7 +45,10 @@ version = release = VERSION
 author = 'Satellite QE'
 autodoc_default_flags = ['members']
 exclude_patterns = ['_build']
-extensions = ['sphinx.ext.autodoc']
+extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx.ext.autosectionlabel',
+]
 master_doc = 'index'
 nitpicky = True
 source_suffix = '.rst'
