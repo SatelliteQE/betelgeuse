@@ -1,4 +1,10 @@
-all: test-coverage lint package
+all: test-coverage lint docs-html package
+
+docs-clean:
+	@cd docs; $(MAKE) clean
+
+docs-html:
+	@cd docs; $(MAKE) html
 
 init:
 	pip install -r requirements.txt
@@ -32,4 +38,5 @@ test-coverage:
 test-watch:
 	ptw tests
 
-.PHONY: all init init-dev lint publish test-publish test test-coverage
+.PHONY: all docs-clean docs-html init init-dev lint publish test-publish test \
+        test-coverage
