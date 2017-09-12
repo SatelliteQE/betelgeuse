@@ -11,6 +11,19 @@ and transformations by providing the ``--config-module`` option. The value of
 ``mycustom.config_module``. Note that the config module should be on the Python
 `import search path`_.
 
+Some custom fields are enumerations and expect some specific values. You can
+check the :doc:`Custom fields' values choices <customfieldsvalues>` document
+for a reference of the values allowed for some of the fields. Not all field
+that are enumerations are listed on the document, only ones that are not
+supposed to be customized.
+
+.. note::
+
+    Polarion allows each project to customize its own custom fields. If you
+    find an error message while importing the test cases, first check if the
+    value matches the case (choice values are casesensitive) and then check if
+    you project has customized the enumeration for that field.
+
 .. _import search path: http://www.diveintopython3.net/your-first-python-program.html#importsearchpath
 
 Tutorial
