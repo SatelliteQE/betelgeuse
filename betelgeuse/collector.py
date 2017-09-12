@@ -13,28 +13,55 @@ class TestFunction(object):
 
     def __init__(self, function_def, parent_class=None, testmodule=None):
         """``ast.FunctionDef`` instance used to extract information."""
+        #: The unparsed testcase docstring
         self.docstring = ast.get_docstring(function_def)
+        #: The ``ast.FunctionDef`` representation of the testcase method or
+        #: function
         self.function_def = function_def
+        #: The testcase function or method name
         self.name = function_def.name
         if parent_class:
+            #: If the testcase is a method then the parent class name will be
+            #: set, otherwise it will be ``None``
             self.parent_class = parent_class.name
+            #: If the testcase is a method then the parent ``ast.ClasDef``
+            #: representation of the parent calss will be set, otherwise it
+            #: will be ``None``
             self.parent_class_def = parent_class
+            #: If test case is a method then the parent class docstring will be
+            #: set, otherwise it will be ``None``
             self.class_docstring = ast.get_docstring(self.parent_class_def)
         else:
             self.parent_class = None
             self.parent_class_def = None
             self.class_docstring = None
+        #: The parent module path in Python import path notation
         self.testmodule = testmodule.path
+        #: The parent module ``ast.Module`` representation.
         self.module_def = testmodule
+        #: The parent module docstring
         self.module_docstring = ast.get_docstring(self.module_def)
+        #: The ``__init__.py`` path for the package containing the test module
+        #: if it existis, or ``None`` otherwise
         self.pkginit = os.path.join(
             os.path.dirname(self.testmodule), '__init__.py')
         if os.path.exists(self.pkginit):
+            #: If ``__init__.py`` module exists, this will be the
+            #: ``ast.Module`` representation of that module, it will be
+            #: ``None`` otherwise
             self.pkginit_def = ast.parse(''.join(open(self.pkginit)))
+            #: If ``__init__.py`` module exists, this will be the
+            #: docstring of that module, it will be ``None`` otherwise
             self.pkginit_docstring = ast.get_docstring(self.pkginit_def)
         else:
+            self.pkginit = None
             self.pkginit_def = None
             self.pkginit_docstring = None
+        #: The dictionary that will store the field values defined for the
+        #: testcase. The field value resolution order is the test funtion or
+        #: method docstring, the class docstring if it is a method, the module
+        #: docstring and finally the ``__init__.py`` docstring if present. The
+        #: first value found the search will stop.
         self.fields = {}
         self._parse_docstring()
 

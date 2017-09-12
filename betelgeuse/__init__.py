@@ -25,7 +25,7 @@ import click
 from pylarion.plan import Plan
 from pylarion.work_item import Requirement
 
-from betelgeuse import collector, config, parser
+from betelgeuse import collector, config
 
 
 logging.captureWarnings(True)
@@ -389,50 +389,91 @@ def create_xml_property(name, value):
     return element
 
 
+def get_field_values(config, testcase):
+    """Return a dict of fields and their values.
+
+    For each field missing a value try to get a default value from the config
+    module and include the field and its value on the returned dict.
+
+    Fields with values other than ``None`` are returned untouched.
+
+    :param testcase: a ``collector.TestFunction`` instance.
+    :returns: a dict with all fields populated, the ones already with values
+        and the ones with default value on the config module.
+    """
+    fields = testcase.fields.copy()
+    for field in config.TESTCASE_FIELDS + config.TESTCASE_CUSTOM_FIELDS:
+        value = fields.get(field)
+        if value is None:
+            default = getattr(
+                config, 'DEFAULT_{}_VALUE'.format(field.upper()), None)
+            if callable(default):
+                default = default(testcase)
+            if default is not None:
+                fields[field] = default
+    return fields
+
+
 def create_xml_testcase(config, testcase, automation_script_format):
     """Create an XML testcase element.
 
     The element will be in the format to be used by the XML test case importer.
     """
-    testcase.fields = {k.lower(): v for k, v in testcase.fields.items()}
-    fields = testcase.fields.copy()
-    element = ElementTree.Element('testcase')
-    element.set('id', fields.pop('id', generate_test_id(testcase)))
-    # TODO: set other attributes assignee-id, due-date, initial-estimate
     if testcase.docstring:
         if not type(testcase.docstring) == unicode:
             testcase.docstring = testcase.docstring.decode('utf8')
 
-    title = fields.get('title')
-    if title is None:
-        default = getattr(config, 'DEFAULT_TITLE_VALUE', None)
-        if callable(default):
-            default = default(testcase)
-        if default is not None:
-            fields['title'] = default
-    title = ElementTree.Element('title')
-    title.text = fields['title']
-    element.append(title)
-    fields['description'] = fields.get(
-        'description',
-        parser.parse_rst(testcase.docstring)
-    )
-    description = ElementTree.Element('description')
-    description.text = fields.pop('description')
-    element.append(description)
+    # Check if any field needs a default value
+    testcase.fields = {k.lower(): v for k, v in testcase.fields.items()}
+    testcase.fields.update(get_field_values(config, testcase))
 
-    if 'requirement' in fields:
+    # If automation_script is not defined on the docstring generate one
+    if 'automation_script' not in testcase.fields:
+        testcase.fields['automation_script'] = automation_script_format.format(
+            path=testcase.module_def.path,
+            line_number=testcase.function_def.lineno,
+        )
+
+    # Apply the transformations before creating the XML node for the testcase
+    for field in testcase.fields.keys():
+        transform_func = getattr(
+            config, 'TRANSFORM_{}_VALUE'.format(field.upper()), None)
+        if callable(transform_func):
+            testcase.fields[field] = transform_func(
+                testcase.fields[field], testcase)
+
+    # With all field processing in place, it is time to generate the XML
+    # testcase node
+    element = ElementTree.Element('testcase')
+
+    # The testcase id is always requred, generate one if it still don't have a
+    # value
+    testcase_id = testcase.fields.get('id')
+    if testcase_id is None:
+        testcase_id = generate_test_id(testcase)
+    element.set('id', testcase_id)
+
+    # Title and description require their own node
+    for field in ('title', 'description'):
+        value = testcase.fields.get(field)
+        if value is not None:
+            field_element = ElementTree.Element(field)
+            field_element.text = value
+            element.append(field_element)
+
+    # Should the testcase be linked to a Requiment?
+    if 'requirement' in testcase.fields:
         linked_work_items = ElementTree.Element('linked-work-items')
         linked_work_item = ElementTree.Element('linked-work-item')
-        linked_work_item.set('workitem-id', fields.pop('requirement'))
+        linked_work_item.set('workitem-id', testcase.fields['requirement'])
         linked_work_item.set('role-id', 'verifies')
         linked_work_item.set('lookup-method', 'name')
         linked_work_items.append(linked_work_item)
         element.append(linked_work_items)
 
-    steps = fields.pop('steps', None)
-    expectedresults = fields.pop('expectedresults', None)
-
+    # Steps and expected results will be mapped only if both are defined
+    steps = testcase.fields.get('steps')
+    expectedresults = testcase.fields.get('expectedresults')
     if steps and expectedresults:
         test_steps = ElementTree.Element('test-steps')
         for step, expectedresult in map_steps(steps, expectedresults):
@@ -448,30 +489,9 @@ def create_xml_testcase(config, testcase, automation_script_format):
             test_steps.append(test_step)
         element.append(test_steps)
 
+    # Finally include the custom fields
     custom_fields = ElementTree.Element('custom-fields')
-    for field in config.TESTCASE_CUSTOM_FIELDS:
-        value = fields.get(field)
-        if value is None:
-            default = getattr(
-                config, 'DEFAULT_{}_VALUE'.format(field.upper()), None)
-            if callable(default):
-                default = default(testcase)
-            if default is not None:
-                fields[field] = default
-                testcase.fields[field] = default
-
-    for field in fields.keys():
-        transform_func = getattr(
-            config, 'TRANSFORM_{}_VALUE'.format(field.upper()), None)
-        if callable(transform_func):
-            fields[field] = transform_func(fields[field], testcase)
-
-    fields['automation_script'] = automation_script_format.format(
-        path=testcase.module_def.path,
-        line_number=testcase.function_def.lineno,
-    )
-
-    for key, value in fields.items():
+    for key, value in testcase.fields.items():
         if value is None or key not in config.TESTCASE_CUSTOM_FIELDS:
             continue
         custom_field = ElementTree.Element('custom-field')

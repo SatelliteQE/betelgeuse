@@ -30,7 +30,7 @@ Betelgeuse's default configuration can be accessed by importing the module
 ``betelgeuse.default_config``. Add the following content to the
 ``my_custom_config.py`` file:
 
-.. code-block::
+.. code-block:: python
 
     from betelgeuse import default_config
 
@@ -44,13 +44,14 @@ The next step is to provide a default value for each added field. Betelgeuse
 will look for a attribute called ``DEFAULT_{field_name.upper()}_VALUE`` for
 each field and, if it is defined, the default value will then be evaluated. The
 default value can be a plain string or a callable, for the latter it will be
-called and a test case object will be passed.
+called and a test case object will be passed, see `Testcase objects`_ for
+information of available attributes.
 
 The ``myfield1`` default value will be a plain string and the ``myfield2``
 default value will be a callable that will return the current date. Add the
 following lines to the ``my_custom_config.py`` file:
 
-.. code-block::
+.. code-block:: python
 
     import datetime
 
@@ -70,13 +71,14 @@ will be after assigning all the field values. A transformation function is
 useful, for example, to ensure lower or upper case on a value. Betelgeuse will
 look for an attribute called ``TRANSFORM_{field_name.upper()}_VALUE`` on the
 configuration module and if defined will call that function passing the value
-and the testcase object.
+and the testcase object, see `Testcase objects`_ for information of available
+attributes.
 
 Let's define a transformation function that will prefix the ``myfield1`` with
 the value of ``myfield2``. Add the following lines to the
 ``my_custom_config.py`` file:
 
-.. code-block::
+.. code-block:: python
 
     def prefix_with_myfield2_value(value, testcase):
         """Prefix the value with the value of myfield2 field."""
@@ -97,8 +99,30 @@ new fields are not defined on any of the ``sample_project`` test cases.
 Default Configuration
 =====================
 
-Check the default custom fields, the default values and transformation defined
-by the default configuration module.
+The default configuration includes all the fields and custom fields that
+Betelgeuse will look for when parsing the source code. It also provides the
+default values and transformations for some of the fields.
+
+.. note::
+
+    The testcase fields are present on the configuration for information only.
+    Each field requires specific processing, and because that, Betelgeuse won't
+    be able to process additional fields.
+
+    If you override the ``betelgeuse.default_config.TESTCASE_FIELDS`` and
+    remove some of the fields they will not be processed and added to the
+    generated XML. It is hightly recommended to avoid overriding or extending
+    this configuration.
+
+You can override or extend any of the defined information on your configuration
+module. Make sure to use valid values or your import will fail since Betelgeuse
+does not validate the values on Polarion.
 
 .. literalinclude:: ../betelgeuse/default_config.py
     :linenos:
+
+Testcase objects
+================
+
+.. autoclass:: betelgeuse.collector.TestFunction
+    :members:

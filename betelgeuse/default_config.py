@@ -1,9 +1,15 @@
 """Default Betelgeuse configuration."""
+from betelgeuse import parser
 
 
 ####################
 # Helper functions #
 ####################
+
+def _get_default_description(testcase):
+    """Return the default value for description field."""
+    return parser.parse_rst(testcase.docstring)
+
 
 def _get_default_title(testcase):
     """Return the default value for title field."""
@@ -20,9 +26,19 @@ def _transform_to_lower(value, testcase):
     return value.lower()
 
 
-#################
-# Custom Fields #
-#################
+###################
+# Testcase Fields #
+###################
+
+#: Default testcase fields
+TESTCASE_FIELDS = (
+    'description',
+    'expectedresults',
+    'id',
+    'requirement',
+    'steps',
+    'title',
+)
 
 #: Default testcase custom fields
 TESTCASE_CUSTOM_FIELDS = (
@@ -66,6 +82,7 @@ DEFAULT_CASECOMPONENT_VALUE = '-'
 DEFAULT_CASEIMPORTANCE_VALUE = 'medium'
 DEFAULT_CASELEVEL_VALUE = 'component'
 DEFAULT_CASEPOSNEG_VALUE = _get_default_caseposneg
+DEFAULT_DESCRIPTION_VALUE = _get_default_description
 DEFAULT_SUBTYPE1_VALUE = '-'
 DEFAULT_TESTTYPE_VALUE = 'functional'
 DEFAULT_TITLE_VALUE = _get_default_title
