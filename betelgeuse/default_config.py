@@ -32,10 +32,15 @@ def _transform_to_lower(value, testcase):
 
 #: Default testcase fields
 TESTCASE_FIELDS = (
+    'approvers',
+    'assignee',
     'description',
+    'duedate',
     'expectedresults',
     'id',
+    'initialestimate',
     'requirement',
+    'status',
     'steps',
     'title',
 )

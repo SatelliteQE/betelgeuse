@@ -42,6 +42,14 @@ POLARION_STATUS = {
     'skipped': 'blocked',
 }
 
+TESTCASE_ATTRIBUTES_TO_FIELDS = {
+    'approver-ids': 'approvers',
+    'assignee-id': 'assignee',
+    'due-date': 'duedate',
+    'initial-estimate': 'initialestimate',
+    'status-id': 'status',
+}
+
 JUNIT_TEST_STATUS = ['error', 'failure', 'skipped']
 
 # Cache for shared objects
@@ -452,6 +460,12 @@ def create_xml_testcase(config, testcase, automation_script_format):
     if testcase_id is None:
         testcase_id = generate_test_id(testcase)
     element.set('id', testcase_id)
+
+    # Set the status and approvers of the testcase
+    for attribute, field in TESTCASE_ATTRIBUTES_TO_FIELDS.items():
+        value = testcase.fields.get(field)
+        if value is not None:
+            element.set(attribute, value)
 
     # Title and description require their own node
     for field in ('title', 'description'):
