@@ -54,7 +54,6 @@ TESTCASE_CUSTOM_FIELDS = (
     'caseimportance',
     'caselevel',
     'caseposneg',
-    'environment1',
     'setup',
     'subcomponent',
     'subtype1',

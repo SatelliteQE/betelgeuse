@@ -10,12 +10,15 @@ from betelgeuse import (
     INVALID_CHARS_REGEX,
     cli,
     create_xml_property,
+    create_xml_testcase,
+    default_config,
     load_custom_fields,
     map_steps,
     parse_junit,
     parse_test_results,
     validate_key_value_option,
 )
+from betelgeuse.config import BetelgeuseConfig
 from StringIO import StringIO
 from xml.etree import ElementTree
 
@@ -313,6 +316,63 @@ def test_create_xml_property():
     """Check if create_xml_property creates the expected XML tag."""
     generated = ElementTree.tostring(create_xml_property('name', 'value'))
     assert generated == '<property name="name" value="value" />'
+
+
+def test_create_xml_testcase():
+    """Check if create_xml_testcase creates the expected XML tag."""
+    testcase = mock.MagicMock()
+    testcase.name = 'test_it_works'
+    testcase.parent_class = 'FeatureTestCase'
+    testcase.testmodule = 'tests/test_feature.py'
+    testcase.docstring = 'Test feature docstring'
+    testcase.fields = {
+        field: field for field in
+        default_config.TESTCASE_FIELDS + default_config.TESTCASE_CUSTOM_FIELDS
+    }
+    config = BetelgeuseConfig()
+    generated = ElementTree.tostring(
+        create_xml_testcase(config, testcase, '{path}#{line_number}'))
+    assert generated == (
+        '<testcase approver-ids="approvers" assignee-id="assignee" '
+        'due-date="duedate" id="id" initial-estimate="initialestimate" '
+        'status-id="status"><title>title</title>'
+        '<description>description</description><linked-work-items>'
+        '<linked-work-item lookup-method="name" role-id="verifies" '
+        'workitem-id="requirement" /></linked-work-items><test-steps>'
+        '<test-step><test-step-column id="step">steps</test-step-column>'
+        '<test-step-column id="expectedResult">expectedresults'
+        '</test-step-column></test-step></test-steps>'
+        '<custom-fields>'
+        '<custom-field content="arch" id="arch" />'
+        '<custom-field content="automation_script" id="automation_script" />'
+        '<custom-field content="caseautomation" id="caseautomation" />'
+        '<custom-field content="casecomponent" id="casecomponent" />'
+        '<custom-field content="caseimportance" id="caseimportance" />'
+        '<custom-field content="caselevel" id="caselevel" />'
+        '<custom-field content="caseposneg" id="caseposneg" />'
+        '<custom-field content="setup" id="setup" />'
+        '<custom-field content="subcomponent" id="subcomponent" />'
+        '<custom-field content="subtype1" id="subtype1" />'
+        '<custom-field content="subtype2" id="subtype2" />'
+        '<custom-field content="tags" id="tags" />'
+        '<custom-field content="tcmsarguments" id="tcmsarguments" />'
+        '<custom-field content="tcmsbug" id="tcmsbug" />'
+        '<custom-field content="tcmscaseid" id="tcmscaseid" />'
+        '<custom-field content="tcmscategory" id="tcmscategory" />'
+        '<custom-field content="tcmscomponent" id="tcmscomponent" />'
+        '<custom-field content="tcmsnotes" id="tcmsnotes" />'
+        '<custom-field content="tcmsplan" id="tcmsplan" />'
+        '<custom-field content="tcmsreference" id="tcmsreference" />'
+        '<custom-field content="tcmsrequirement" id="tcmsrequirement" />'
+        '<custom-field content="tcmsscript" id="tcmsscript" />'
+        '<custom-field content="tcmstag" id="tcmstag" />'
+        '<custom-field content="teardown" id="teardown" />'
+        '<custom-field content="testtier" id="testtier" />'
+        '<custom-field content="testtype" id="testtype" />'
+        '<custom-field content="upstream" id="upstream" />'
+        '<custom-field content="variant" id="variant" />'
+        '</custom-fields></testcase>'
+    )
 
 
 def test_test_run(cli_runner):

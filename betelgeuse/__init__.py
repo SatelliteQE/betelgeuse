@@ -507,12 +507,12 @@ def create_xml_testcase(config, testcase, automation_script_format):
 
     # Finally include the custom fields
     custom_fields = ElementTree.Element('custom-fields')
-    for key, value in testcase.fields.items():
-        if value is None or key not in config.TESTCASE_CUSTOM_FIELDS:
+    for field in config.TESTCASE_CUSTOM_FIELDS:
+        if field not in testcase.fields:
             continue
         custom_field = ElementTree.Element('custom-field')
-        custom_field.set('id', key)
-        custom_field.set('content', value)
+        custom_field.set('id', field)
+        custom_field.set('content', testcase.fields[field])
         custom_fields.append(custom_field)
     element.append(custom_fields)
     return element
