@@ -1,0 +1,3 @@
+# Install fake_pylarion to avoid import error exceptions when testing on travis
+# or building the documentation
+git+https://github.com/elyezer/fake_pylarion.git#egg=pylarion
