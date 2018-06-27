@@ -431,6 +431,8 @@ def test_test_run(cli_runner):
             properties = [p.attrib for p in properties.findall('property')]
             expected = [
                 {'name': 'polarion-custom-field', 'value': 'value'},
+                {'name': 'polarion-custom-lookup-method-field-id',
+                 'value': 'testCaseID'},
                 {'name': 'polarion-dry-run', 'value': 'true'},
                 {'name': 'polarion-include-skipped', 'value': 'false'},
                 {'name': 'polarion-lookup-method', 'value': 'custom'},
