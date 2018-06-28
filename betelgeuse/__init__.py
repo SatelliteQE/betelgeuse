@@ -545,6 +545,12 @@ def create_xml_testcase(config, testcase, automation_script_format):
     ])
 )
 @click.option(
+    '--lookup-method-custom-field-id',
+    default='testCaseID',
+    help='Indicates to the importer which field ID to use when using the '
+    'custom id lookup method.',
+)
+@click.option(
     '--response-property',
     callback=validate_key_value_option,
     help='When defined, the impoter will mark all responses with the selector.'
@@ -556,7 +562,8 @@ def create_xml_testcase(config, testcase, automation_script_format):
 @pass_config
 def test_case(
         config, automation_script_format, dry_run, lookup_method,
-        response_property, source_code_path, project, output_path):
+        lookup_method_custom_field_id, response_property, source_code_path,
+        project, output_path):
     """Generate an XML suited to be importer by the test-case importer.
 
     This will read the source code at SOURCE_CODE_PATH in order to capture the
@@ -583,6 +590,11 @@ def test_case(
         'dry-run', 'true' if dry_run else 'false'))
     properties.append(create_xml_property(
         'lookup-method', lookup_method))
+    if lookup_method == 'custom':
+        properties.append(create_xml_property(
+            'polarion-custom-lookup-method-field-id',
+            lookup_method_custom_field_id
+        ))
     testcases.append(properties)
 
     source_testcases = itertools.chain(
@@ -701,9 +713,10 @@ def test_run(
         key = 'polarion-response-' + response_property[0]
         custom_fields[key] = response_property[1]
     custom_fields['polarion-lookup-method'] = lookup_method
-    custom_fields['polarion-custom-lookup-method-field-id'] = (
-        lookup_method_custom_field_id
-    )
+    if lookup_method == 'custom':
+        custom_fields['polarion-custom-lookup-method-field-id'] = (
+            lookup_method_custom_field_id
+        )
     custom_fields['polarion-project-id'] = project
     custom_fields['polarion-testrun-id'] = test_run_id
     if test_run_template_id:
