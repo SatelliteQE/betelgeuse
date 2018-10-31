@@ -747,12 +747,18 @@ def test_run(
         properties.append(create_xml_property(name, value))
     testsuites.append(properties)
 
-    testcases = {
-        generate_test_id(test): test.fields.get('id')
-        for test in itertools.chain(
-                *collector.collect_tests(source_code_path).values()
-        )
-    }
+    testcases = {}
+    for test in itertools.chain(
+            *collector.collect_tests(source_code_path).values()):
+        junit_test_case_id = generate_test_id(test)
+        test_id = test.fields.get('id')
+        if not test_id:
+            click.echo(
+                'Was not able to find the ID for {0}, setting it to {0}'
+                .format(junit_test_case_id)
+            )
+            test_id = junit_test_case_id
+        testcases[junit_test_case_id] = test_id
     testsuite = ElementTree.parse(junit_path).getroot()
 
     for testcase in testsuite.iterfind('testcase'):
@@ -761,7 +767,7 @@ def test_run(
         test_case_id = testcases.get(junit_test_case_id)
         if not test_case_id:
             click.echo(
-                'Could not find ID information for {}, skipping...'
+                'Found {} on jUnit report but not on source code, skipping...'
                 .format(junit_test_case_id)
             )
             continue

@@ -26,6 +26,7 @@ from xml.etree import ElementTree
 JUNIT_XML = """<testsuite tests="4" skips="0">
     <testcase classname="foo1" name="test_passed" file="source.py" line="8">
     </testcase>
+    <testcase classname="foo1" name="test_passed_no_id"></testcase>
     <testcase classname="foo2" name="test_skipped">
         <skipped message="Skipped message">...</skipped>
     </testcase>
@@ -128,6 +129,7 @@ def test_parse_junit():
     assert parse_junit(junit_xml) == [
         {'classname': 'foo1', 'name': 'test_passed', 'status': 'passed',
          'line': '8', 'file': 'source.py'},
+        {'classname': 'foo1', 'name': 'test_passed_no_id', 'status': 'passed'},
         {'classname': 'foo2', 'message': 'Skipped message',
          'name': 'test_skipped', 'status': 'skipped'},
         {'classname': 'foo3', 'name': 'test_failure',
@@ -295,7 +297,7 @@ def test_test_results(cli_runner):
         assert result.exit_code == 0
         assert 'Error: 1\n' in result.output
         assert 'Failure: 1\n' in result.output
-        assert 'Passed: 1\n' in result.output
+        assert 'Passed: 2\n' in result.output
         assert 'Skipped: 1\n' in result.output
 
 
@@ -308,7 +310,7 @@ def test_test_results_default_path(cli_runner):
         assert result.exit_code == 0
         assert 'Error: 1\n' in result.output
         assert 'Failure: 1\n' in result.output
-        assert 'Passed: 1\n' in result.output
+        assert 'Passed: 2\n' in result.output
         assert 'Skipped: 1\n' in result.output
 
 
@@ -385,6 +387,7 @@ def test_test_run(cli_runner):
         with mock.patch('betelgeuse.collector') as collector:
             testcases = [
                 {'name': 'test_passed', 'testmodule': 'foo1'},
+                {'name': 'test_passed_no_id', 'testmodule': 'foo1'},
                 {'name': 'test_skipped', 'testmodule': 'foo2'},
                 {'name': 'test_failure', 'testmodule': 'foo3'},
                 {'name': 'test_error', 'testmodule': 'foo4'},
@@ -395,7 +398,10 @@ def test_test_run(cli_runner):
                 t.name = test['name']
                 t.testmodule = test['testmodule']
                 t.parent_class = None
-                t.fields = {'id': str(id(t))}
+                if test['name'] == 'test_passed_no_id':
+                    t.fields = {}
+                else:
+                    t.fields = {'id': str(id(t))}
                 return_value_testcases.append(t)
 
             collector.collect_tests.return_value = {
@@ -421,7 +427,11 @@ def test_test_run(cli_runner):
                     'importer.xml'
                 ]
             )
-            assert result.exit_code == 0
+            assert result.exit_code == 0, result.output()
+            assert result.output.strip() == (
+                'Was not able to find the ID for {0}, setting it to {0}'
+                .format('foo1.test_passed_no_id')
+            )
             collector.collect_tests.assert_called_once_with('source.py')
             assert os.path.isfile('importer.xml')
             root = ElementTree.parse('importer.xml').getroot()
@@ -457,9 +467,13 @@ def test_test_run(cli_runner):
                 p = properties.findall('property')
                 assert len(p) == 1
                 p = p[0]
+                if testcase.attrib['name'] == 'test_passed_no_id':
+                    polarion_testcase_id = 'foo1.test_passed_no_id'
+                else:
+                    polarion_testcase_id = id(return_value_testcases[index])
                 assert p.attrib == {
                     'name': 'polarion-testcase-id',
-                    'value': str(id(return_value_testcases[index]))
+                    'value': str(polarion_testcase_id),
                 }
 
 
