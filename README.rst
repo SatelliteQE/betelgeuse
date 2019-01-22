@@ -1,8 +1,8 @@
 Betelgeuse
 ==========
 
-.. image:: https://coveralls.io/repos/github/SatelliteQE/betelgeuse/badge.svg?branch=master
-    :target: https://coveralls.io/github/SatelliteQE/betelgeuse?branch=master
+.. image:: https://codecov.io/gh/SatelliteQE/betelgeuse/branch/master/graph/badge.svg
+    :target: https://codecov.io/gh/SatelliteQE/betelgeuse
 
 .. image:: https://readthedocs.org/projects/betelgeuse/badge/?version=latest
     :target: http://betelgeuse.readthedocs.org/en/latest/?badge=latest
