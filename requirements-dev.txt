@@ -12,9 +12,6 @@ wheel
 # For `make publish`
 twine
 
-# For `make test-coverage`
-coveralls
-
 # For `make test{,-*}`
 mock
 pytest
