@@ -174,7 +174,7 @@ def parse_docstring(docstring=None):
         field_names = field_list.getElementsByTagName('dt')
         field_values = field_list.getElementsByTagName('dd')
         for field_name, field_value in zip(field_names, field_values):
-            field_name = field_name.firstChild.nodeValue
+            field_name = field_name.firstChild.nodeValue.lower()
             output = ''
             if (len(field_value.childNodes) == 2 and
                     field_value.childNodes[0].tagName == 'p'):
