@@ -1,11 +1,12 @@
+dist: xenial
 sudo: false
 language: python
 python:
-  - 2.7
+  - '3.6'
+  - '3.7'
 install:
   - pip install -r requirements.txt
   - pip install -U -r requirements-dev.txt
-  - pip install -r requirements-extra.txt
   - pip install codecov
 script:
   - make all

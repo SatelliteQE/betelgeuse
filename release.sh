@@ -44,7 +44,6 @@ set -u
 for dist in dist/*; do
     ls "${dist}"
     pip install --quiet -U pip
-    pip install --quiet git+https://github.com/elyezer/fake_pylarion.git
     pip install --quiet "${dist}"
     python -c "import betelgeuse" 1>/dev/null
     make test

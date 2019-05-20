@@ -21,10 +21,15 @@ setup(
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3 :: Only',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.6',
     ],
-    description=('Betelgeuse reads standard Python test cases and offers '
-                 'tools to interact with Polarion.'),
+    description=(
+        'Betelgeuse is a Python program that reads standard Python test cases '
+        'and generates XML files that are suited to be imported by Polarion '
+        'importers.'
+    ),
     entry_points='''
         [console_scripts]
         betelgeuse=betelgeuse:cli

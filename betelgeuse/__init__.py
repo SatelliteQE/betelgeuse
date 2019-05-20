@@ -1,13 +1,11 @@
 """Betelgeuse.
 
-Betelgeuse reads standard Python test cases and offers tools to interact with
-Polarion. Possible interactions:
+Betelgeuse is a Python program that reads standard Python test cases and
+generates XML files that are suited to be imported by Polarion importers.
+Possible generated XML files are:
 
-* Automatic creation of Requirements and Test Cases from a Python
-  project code base and jUnit XML file.
-* Synchronization of Test Cases from a Python project code base
-  and jUnit XML file.
-* Creation of Test Runs based on a jUnit XML file.
+* Test Case Importer XML
+* Test Run Importer XML
 """
 import itertools
 import json
@@ -15,15 +13,12 @@ import logging
 import re
 import ssl
 import time
-import warnings
 from collections import Counter
 from xml.dom import minidom
 from xml.etree import ElementTree
 from xml.parsers.expat import ExpatError
 
 import click
-from pylarion.plan import Plan
-from pylarion.work_item import Requirement
 
 from betelgeuse import collector, config
 
@@ -149,24 +144,24 @@ def map_steps(steps, expectedresults):
         return [(steps, expectedresults)]
     if (parsed_steps.firstChild.tagName == 'p' and
             parsed_expectedresults.firstChild.tagName == 'p'):
-        parsed_steps = [parsed_steps.firstChild.toxml().decode('utf-8')]
+        parsed_steps = [parsed_steps.firstChild.toxml()]
         parsed_expectedresults = [
-            parsed_expectedresults.firstChild.toxml().decode('utf-8')]
+            parsed_expectedresults.firstChild.toxml()]
     elif (parsed_steps.firstChild.tagName == 'ol' and
             parsed_expectedresults.firstChild.tagName == 'ol'):
         parsed_steps = [
-            element.firstChild.toxml().decode('utf-8')
+            element.firstChild.toxml()
             for element in parsed_steps.getElementsByTagName('li')
         ]
         parsed_expectedresults = [
-            element.firstChild.toxml().decode('utf-8')
+            element.firstChild.toxml()
             for element in parsed_expectedresults.getElementsByTagName('li')
         ]
     else:
         parsed_steps = [steps]
         parsed_expectedresults = [expectedresults]
     if len(parsed_steps) == len(parsed_expectedresults):
-        return zip(parsed_steps, parsed_expectedresults)
+        return list(zip(parsed_steps, parsed_expectedresults))
     else:
         return [(steps, expectedresults)]
 
@@ -235,28 +230,10 @@ def parse_test_results(test_results):
     return Counter([test['status'] for test in test_results])
 
 
-class AliasedGroup(click.Group):
-    """Make xml-<command> commands resolve to <command>."""
-
-    def get_command(self, ctx, cmd_name):
-        """Drop xml- prefix when getting the command."""
-        if cmd_name in ('xml-test-case', 'xml-test-run'):
-            new_cmd_name = cmd_name.lstrip('xml-')
-            warnings.warn(
-                'The command {} is renamed to {}, this alias will be removed '
-                'in a future version of Betelgeuse'
-                .format(cmd_name, new_cmd_name),
-                DeprecationWarning,
-                stacklevel=2
-            )
-            cmd_name = new_cmd_name
-        return super(AliasedGroup, self).get_command(ctx, cmd_name)
-
-
 pass_config = click.make_pass_decorator(config.BetelgeuseConfig, ensure=True)
 
 
-@click.group(cls=AliasedGroup)
+@click.group()
 @click.option(
     '--config-module',
     envvar='BETELGEUSE_CONFIG_MODULE',
@@ -274,39 +251,12 @@ def cli(ctx, config_module):
 @click.argument('project')
 def requirement(source_code_path, project):
     """Create and/or update requirements in Polarion."""
-    requirements = []
-    source_testcases = itertools.chain(
-        *collector.collect_tests(source_code_path).values())
-    for testcase in source_testcases:
-        fields = {k.lower(): v for k, v in testcase.fields.items()}
-        if ('requirement' in fields and
-                fields['requirement'] not in requirements):
-            requirement_title = fields['requirement']
-            results = Requirement.query(
-                requirement_title,
-                fields=['status', 'title']
-            )
-            requirement = None
-            for result in results:
-                if result.title == requirement_title:
-                    requirement = result
-                    break
-            if requirement is None:
-                click.echo(
-                    u'Creating requirement {0}.'.format(fields['requirement'])
-                )
-                requirement = Requirement.create(
-                    project,
-                    requirement_title,
-                    '',
-                    reqtype='functional'
-                )
-            if requirement.status != 'approved':
-                click.echo(
-                    u'Approving requirement {0}.'.format(requirement.title)
-                )
-                requirement.status = 'approved'
-                requirement.update()
+    click.echo(
+        'Betelgeuse stopped creating requirements because pylarion is not '
+        'supported anymore. This command will be updated and will generate a '
+        'XML file to be used with the requirements importer in a future '
+        'release.'
+    )
 
 
 @cli.command('test-plan')
@@ -336,43 +286,10 @@ def requirement(source_code_path, project):
 @click.argument('project')
 def test_plan(name, plan_type, parent_name, custom_fields, project):
     """Create a new test plan in Polarion."""
-    # Sanitize names to valid values for IDs...
-    custom_fields = load_custom_fields(custom_fields)
-    plan_id = re.sub(INVALID_CHARS_REGEX, '_', name).replace(' ', '_')
-    parent_plan_id = (
-        re.sub(INVALID_CHARS_REGEX, '_', parent_name).replace(' ', '_')
-        if parent_name else parent_name
+    click.echo(
+        'Betelgeuse stopped creating test plans because pylarion is not '
+        'supported anymore. This command will be removed in a future release.'
     )
-    # Check if the test plan already exists
-    result = Plan.search('id:{0}'.format(plan_id))
-    if len(result) == 1:
-        click.echo('Found Test Plan {0}.'.format(name))
-        test_plan = result[0]
-    else:
-        # Unlike Testrun, Pylarion currently does not accept **kwargs in
-        # Plan.create() so the custom fields need to be updated after the
-        # creation
-        test_plan = Plan.create(
-            parent_id=parent_plan_id,
-            plan_id=plan_id,
-            plan_name=name,
-            project_id=project,
-            template_id=plan_type
-        )
-        click.echo(
-            'Created new Test Plan {0} with ID {1}.'.format(name, plan_id))
-
-    update = False
-    for field, value in custom_fields.items():
-        if getattr(test_plan, field) != value:
-            setattr(test_plan, field, value)
-            click.echo(
-                'Test Plan {0} updated with {1}={2}.'.format(
-                    test_plan.name, field, value)
-            )
-            update = True
-    if update:
-        test_plan.update()
 
 
 @cli.command('test-results')
@@ -430,7 +347,7 @@ def create_xml_testcase(config, testcase, automation_script_format):
     The element will be in the format to be used by the XML test case importer.
     """
     if testcase.docstring:
-        if not type(testcase.docstring) == unicode:
+        if not type(testcase.docstring) == str:
             testcase.docstring = testcase.docstring.decode('utf8')
 
     # Check if any field needs a default value
@@ -523,7 +440,7 @@ def create_xml_testcase(config, testcase, automation_script_format):
     '--automation-script-format',
     help=(r'The format for the automation-script field. The variables {path} '
           'and {line_number} are available and will be expanded to the test '
-          'case module path and the line number where it\'s defined '
+          'case module path and the line number where it is defined '
           'respectively. Default: {path}#{line_number}'),
     default='{path}#{line_number}',
 )

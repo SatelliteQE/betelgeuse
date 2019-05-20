@@ -19,7 +19,7 @@ from betelgeuse import (
     validate_key_value_option,
 )
 from betelgeuse.config import BetelgeuseConfig
-from StringIO import StringIO
+from io import StringIO
 from xml.etree import ElementTree
 
 
@@ -65,6 +65,11 @@ MULTIPLE_EXPECTEDRESULTS = """<ol>
 SINGLE_STEP = """<p>Single step</p>"""
 
 SINGLE_EXPECTEDRESULT = """<p>Single step expected result.</p>"""
+
+TEST_PLAN_OUTPUT = (
+    'Betelgeuse stopped creating test plans because pylarion is not '
+    'supported anymore. This command will be removed in a future release.\n'
+)
 
 
 @pytest.fixture
@@ -189,102 +194,63 @@ def test_parse_test_results():
 
 def test_test_plan(cli_runner):
     """Check if test-plan command runs with minimal parameters."""
-    with mock.patch('betelgeuse.Plan') as plan:
-        plan.search.return_value = []
-        result = cli_runner.invoke(
-            cli,
-            [
-                'test-plan',
-                '--name', 'Test Plan Name',
-                'PROJECT'
-            ]
-        )
-        assert result.exit_code == 0
-        plan.create.assert_called_once_with(
-            parent_id=None,
-            plan_id='Test_Plan_Name',
-            plan_name='Test Plan Name',
-            project_id='PROJECT',
-            template_id='release',
-        )
+    result = cli_runner.invoke(
+        cli,
+        [
+            'test-plan',
+            '--name', 'Test Plan Name',
+            'PROJECT'
+        ]
+    )
+    assert result.exit_code == 0
+    assert result.stdout == TEST_PLAN_OUTPUT
 
 
 def test_test_plan_with_custom_fields(cli_runner):
     """Check if test-plan command runs with custom_fields."""
-    with mock.patch('betelgeuse.Plan') as plan:
-        test_plan = plan()
-        test_plan.status = 'open'
-        # Search will not return anything so new test plan will be created
-        plan.search.return_value = []
-        # Create command returns generated `test_plan` mock object
-        plan.create.return_value = test_plan
-        plan.update.return_value = []
-        result = cli_runner.invoke(
-            cli,
-            [
-                'test-plan',
-                '--name',
-                'Test Plan Name',
-                '--custom-fields',
-                'status=done',
-                'PROJECT'
-            ]
-        )
-        assert result.exit_code == 0
-        plan.create.assert_called_once_with(
-            parent_id=None,
-            plan_id='Test_Plan_Name',
-            plan_name='Test Plan Name',
-            project_id='PROJECT',
-            template_id='release',
-        )
-        assert test_plan.status == 'done'
+    result = cli_runner.invoke(
+        cli,
+        [
+            'test-plan',
+            '--name',
+            'Test Plan Name',
+            '--custom-fields',
+            'status=done',
+            'PROJECT'
+        ]
+    )
+    assert result.exit_code == 0
+    assert result.stdout == TEST_PLAN_OUTPUT
 
 
 def test_test_plan_with_parent(cli_runner):
     """Check if test-plan command runs when passing a parent test plan."""
-    with mock.patch('betelgeuse.Plan') as plan:
-        plan.search.return_value = []
-        result = cli_runner.invoke(
-            cli,
-            [
-                'test-plan',
-                '--name', 'Test Plan Name',
-                '--parent-name', 'Parent Test Plan Name',
-                'PROJECT'
-            ]
-        )
-        assert result.exit_code == 0
-        plan.create.assert_called_once_with(
-            parent_id='Parent_Test_Plan_Name',
-            plan_id='Test_Plan_Name',
-            plan_name='Test Plan Name',
-            project_id='PROJECT',
-            template_id='release',
-        )
+    result = cli_runner.invoke(
+        cli,
+        [
+            'test-plan',
+            '--name', 'Test Plan Name',
+            '--parent-name', 'Parent Test Plan Name',
+            'PROJECT'
+        ]
+    )
+    assert result.exit_code == 0
+    assert result.stdout == TEST_PLAN_OUTPUT
 
 
 def test_test_plan_with_iteration_type(cli_runner):
     """Check if test-plan command creates a iteration test plan."""
-    with mock.patch('betelgeuse.Plan') as plan:
-        plan.search.return_value = []
-        result = cli_runner.invoke(
-            cli,
-            [
-                'test-plan',
-                '--name', 'Test Plan Name',
-                '--plan-type', 'iteration',
-                'PROJECT'
-            ]
-        )
-        assert result.exit_code == 0
-        plan.create.assert_called_once_with(
-            parent_id=None,
-            plan_id='Test_Plan_Name',
-            plan_name='Test Plan Name',
-            project_id='PROJECT',
-            template_id='iteration',
-        )
+    result = cli_runner.invoke(
+        cli,
+        [
+            'test-plan',
+            '--name', 'Test Plan Name',
+            '--plan-type', 'iteration',
+            'PROJECT'
+        ]
+    )
+    assert result.exit_code == 0
+    assert result.stdout == TEST_PLAN_OUTPUT
 
 
 def test_test_results(cli_runner):
@@ -316,7 +282,10 @@ def test_test_results_default_path(cli_runner):
 
 def test_create_xml_property():
     """Check if create_xml_property creates the expected XML tag."""
-    generated = ElementTree.tostring(create_xml_property('name', 'value'))
+    generated = ElementTree.tostring(
+        create_xml_property('name', 'value'),
+        encoding='unicode'
+    )
     assert generated == '<property name="name" value="value" />'
 
 
@@ -333,7 +302,9 @@ def test_create_xml_testcase():
     }
     config = BetelgeuseConfig()
     generated = ElementTree.tostring(
-        create_xml_testcase(config, testcase, '{path}#{line_number}'))
+        create_xml_testcase(config, testcase, '{path}#{line_number}'),
+        encoding='unicode'
+    )
     assert generated == (
         '<testcase approver-ids="approvers" assignee-id="assignee" '
         'due-date="duedate" id="id" initial-estimate="initialestimate" '
