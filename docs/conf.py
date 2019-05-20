@@ -76,7 +76,7 @@ texinfo_documents = [(
     project + ' Documentation',
     author,
     project,
-    ('Betelgeuse reads standard Python test cases and offers tools to '
-     'interact with Polarion.'),
+    ('Betelgeuse reads standard Python test cases and generates XML files '
+     'that are suited to be imported by Polarion importers.'),
     'Miscellaneous'
 )]

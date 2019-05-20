@@ -1,6 +1,6 @@
 """Parsers for test docstrings."""
-from StringIO import StringIO
 from collections import namedtuple
+from io import StringIO
 from xml.dom import minidom
 
 from docutils.core import publish_parts

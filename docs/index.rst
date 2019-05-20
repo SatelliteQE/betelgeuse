@@ -9,51 +9,23 @@ Betelgeuse documentation
 What is Betelgeuse?
 ===================
 
-Betelgeuse is a python program that reads standard Python test cases and offers
-tools to interact with Polarion. Possible interactions are:
+Betelgeuse is a Python program that reads standard Python test cases and
+generates XML files that are suited to be imported by Polarion importers.
+Possible generated XML files are:
 
-* Automatic creation/update of Requirements and Test Cases from a Python
-  project code base.
-* Automatic creation/update of Test Runs based on a jUnit XML file.
-
-Betelgeuse uses Pylarion project to communicate with Polarion.
-
-Prerequisites
-=============
-
-Login to Polarion in a browser to check if the login user has permissions to
-create/update the following entities in Polarion:
-
-* requirement
-* test case
-* test run
-
-If you want Betelgeuse to automatically approve the test cases, then make sure
-the user has permission to approve them. Betelgeuse will check if the user is
-on the allowed approvers list, and, if that is the case, will set the approvee
-and approve the test case.
+* Test Case Importer XML
+* Test Run Importer XML
 
 Quick Start
 ===========
 
-1. Betelgeuse uses Pylarion to interact with Polarion. Install Pylarion from its
-   source.
-
-   .. note::
-
-     - It may be possible that the latest version of Betelgeuse may not work
-       correctly with some versions of Pylarion. In this case, please use an
-       alternate working version of Pylarion.
-     - Read Pylarion documentation and set up ``.pylarion`` config file as
-       required.
-
-2. Install betelguese from pypi.
+1. Install betelguese from pypi.
 
    .. code-block:: console
 
        $ pip install betelgeuse
 
-3. Alternatively you can install from source:
+2. Alternatively you can install from source:
 
    .. code-block:: console
 
@@ -215,18 +187,9 @@ help command
 requirement command
 -------------------
 
-Creates/updates requirements in Polarion. This command will grab all
-requirements (defined by the ``:requirement:`` field) and will create/update
-them. Also it will approve the requirements which are not approved yet.
-
-.. code-block:: console
-
-    $ betelgeuse requirement sample_project/tests/ PROJECT_CLOUD
-
-.. note::
-
-    Requirements must be created in order to link test cases to them. Make sure
-    to run this before importing the test cases.
+Betelgeuse stopped creating requirements because pylarion is not supported
+anymore. This command will be updated and will generate a XML file to be used
+with the requirements importer in a future release.
 
 test-case command
 -----------------
@@ -261,70 +224,8 @@ The example below shows how to run the command:
 test-plan command
 -----------------
 
-The test-plan command allows creating a parent or child test plans. This is
-done by using --parent-name option.
-
-Create a parent test plan
-    If ``parent-name`` option is not specified, then just a parent test plan
-    will be created.
-
-Create a child test plan
-    If ``parent-name`` option is specified, then a child test plan will be
-    created and linked to the specified parent test plan.
-
-Betelgeuse will automatically generate the test plan IDs from the passed test
-plan names by replacing special characters and converting spaces to ``_``.
-
-.. warning::
-
-    Make sure to pass the right names for the test plans in order to find the
-    expected work items in Polarion. Otherwise, you may see an error.
-
-Examples:
-
-.. code-block:: console
-
-    $ betelgeuse test-plan --name "Parent Name" PROJECT_CLOUD
-    Created new Test Plan Parent Name with ID Parent_Name.
-
-    $ betelgeuse test-plan \
-        --name "Child Name" \
-        --parent-name "Parent Name" \
-        PROJECT_CLOUD
-    Created new Test Plan Child Name with ID Child_Name.
-
-.. note::
-
-    Use ``--plan-type`` to set the plan type of a test plan to ``release`` or
-    ``iteration``. The default value is ``release``.
-
-The test-plan command can also be used to update custom fields in a test plan.
-The ``--custom-fields`` option can be used with a ``key=value`` format or a JSON
-format as explained in `test-run command`_ section.
-
-To create a new test plan and update its ``status``:
-
-.. code-block:: console
-
-    $ betelgeuse test-plan \
-        --name="Iteration 1" \
-        --custom-fields status=inprogress \
-        PROJECT_CLOUD
-    Created new Test Plan Iteration 1 with ID Iteration_1.
-    Test Plan iteration 1 updated with status=inprogress.
-
-The test-plan command is smart enough to check if a test plan with the given
-name already exists before creating it.  For example, to update an already
-existing test plan:
-
-.. code-block:: console
-
-    $ betelgeuse test-plan \
-        --name="Iteration 1" \
-        --custom-fields status=done \
-        PROJECT_CLOUD
-    Found Test Plan Iteration 1.
-    Test Plan iteration 1 updated with status=done.
+Betelgeuse stopped creating test plans because pylarion is not supported
+anymore. This command will be removed in a future release.
 
 test-results command
 --------------------
