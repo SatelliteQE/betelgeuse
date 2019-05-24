@@ -13,7 +13,7 @@ set -euo pipefail
 # Make sure local fork is updated
 git fetch -p --all
 git checkout master
-git merge --ff-only upstream/master
+git merge --ff-only origin/master
 
 OLD_VERSION="$(git tag --list | sort -V | tail -n 1)"
 if [[ $# -gt 0 ]]; then
@@ -37,7 +37,7 @@ make package-clean package
 
 # Sanity check Betelgeuse packages on Python 2
 venv="$(mktemp --directory)"
-virtualenv -p python2 "${venv}"
+python3 -m venv "${venv}"
 set +u
 source "${venv}/bin/activate"
 set -u
@@ -73,7 +73,7 @@ EOF
 
 cat <<EOF
 
-    git push --tags origin master && git push --tags upstream master
+    git push --tags origin master
     make publish
 
 EOF
