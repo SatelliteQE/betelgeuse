@@ -240,6 +240,7 @@ pass_config = click.make_pass_decorator(config.BetelgeuseConfig, ensure=True)
     help='Python import path to the config module. E.g. '
     '"package.myconfig.module".',
 )
+@click.version_option()
 @click.pass_context
 def cli(ctx, config_module):
     """Betelgeuse CLI command group."""
