@@ -403,7 +403,7 @@ def test_test_run(cli_runner):
                 'Was not able to find the ID for {0}, setting it to {0}'
                 .format('foo1.test_passed_no_id')
             )
-            collector.collect_tests.assert_called_once_with('source.py')
+            collector.collect_tests.assert_called_once_with('source.py', ())
             assert os.path.isfile('importer.xml')
             root = ElementTree.parse('importer.xml').getroot()
             assert root.tag == 'testsuites'

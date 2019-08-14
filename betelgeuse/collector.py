@@ -114,21 +114,27 @@ def _get_tests(path):
     return tests
 
 
-def collect_tests(path):
+def collect_tests(path, ignore_paths=None):
     """Walk ``path`` and collect test methods and functions found.
 
     :param path: Either a file or directory path to look for test methods and
         functions.
     :return: A dict mapping a test module path and its test cases.
     """
+    if not ignore_paths:
+        ignore_paths = ()
     tests = collections.OrderedDict()
-    if os.path.isfile(path):
+    if os.path.isfile(path) and path not in ignore_paths:
         if is_test_module(os.path.basename(path)):
             tests[path] = _get_tests(path)
             return tests
     for dirpath, _, filenames in os.walk(path):
+        if dirpath in ignore_paths:
+            continue
         for filename in filenames:
+            path = os.path.join(dirpath, filename)
+            if path in ignore_paths:
+                continue
             if is_test_module(filename):
-                path = os.path.join(dirpath, filename)
                 tests[path] = _get_tests(path)
     return tests

@@ -446,6 +446,13 @@ def create_xml_testcase(config, testcase, automation_script_format):
     default='{path}#{line_number}',
 )
 @click.option(
+    '--collect-ignore-path',
+    help='Ignore path during test collection. '
+    'This option can be specified multiple times.',
+    multiple=True,
+    type=click.Path(exists=True),
+)
+@click.option(
     '--dry-run',
     help='Indicate to the importer to not make any change.',
     is_flag=True,
@@ -479,9 +486,9 @@ def create_xml_testcase(config, testcase, automation_script_format):
 @click.argument('output-path')
 @pass_config
 def test_case(
-        config, automation_script_format, dry_run, lookup_method,
-        lookup_method_custom_field_id, response_property, source_code_path,
-        project, output_path):
+        config, automation_script_format, collect_ignore_path, dry_run,
+        lookup_method, lookup_method_custom_field_id, response_property,
+        source_code_path, project, output_path):
     """Generate an XML suited to be importer by the test-case importer.
 
     This will read the source code at SOURCE_CODE_PATH in order to capture the
@@ -515,8 +522,8 @@ def test_case(
         ))
     testcases.append(properties)
 
-    source_testcases = itertools.chain(
-        *collector.collect_tests(source_code_path).values())
+    source_testcases = itertools.chain(*collector.collect_tests(
+        source_code_path, collect_ignore_path).values())
     for testcase in source_testcases:
         testcases.append(
             create_xml_testcase(config, testcase, automation_script_format))
@@ -526,6 +533,13 @@ def test_case(
 
 
 @cli.command('test-run')
+@click.option(
+    '--collect-ignore-path',
+    help='Ignore path during test collection. '
+    'This option can be specified multiple times.',
+    multiple=True,
+    type=click.Path(exists=True),
+)
 @click.option(
     '--custom-fields',
     help='Indicates to the importer which custom fields should be set. '
@@ -598,10 +612,11 @@ def test_case(
 @click.argument('project')
 @click.argument('output-path')
 def test_run(
-        custom_fields, dry_run, lookup_method, lookup_method_custom_field_id,
-        no_include_skipped, response_property, status, test_run_id,
-        test_run_template_id, test_run_title, test_run_type_id, junit_path,
-        source_code_path, user, project, output_path):
+        collect_ignore_path, custom_fields, dry_run, lookup_method,
+        lookup_method_custom_field_id, no_include_skipped, response_property,
+        status, test_run_id, test_run_template_id, test_run_title,
+        test_run_type_id, junit_path, source_code_path, user, project,
+        output_path):
     """Generate an XML suited to be importer by the test-run importer.
 
     This will read the jUnit XML at JUNIT_PATH and the source code at
@@ -666,8 +681,8 @@ def test_run(
     testsuites.append(properties)
 
     testcases = {}
-    for test in itertools.chain(
-            *collector.collect_tests(source_code_path).values()):
+    for test in itertools.chain(*collector.collect_tests(
+            source_code_path, collect_ignore_path).values()):
         junit_test_case_id = generate_test_id(test)
         test_id = test.fields.get('id')
         if not test_id:
