@@ -39,6 +39,7 @@ TESTCASE_FIELDS = (
     'expectedresults',
     'id',
     'initialestimate',
+    'parametrized',
     'requirement',
     'status',
     'steps',
@@ -87,6 +88,7 @@ DEFAULT_CASEIMPORTANCE_VALUE = 'medium'
 DEFAULT_CASELEVEL_VALUE = 'component'
 DEFAULT_CASEPOSNEG_VALUE = _get_default_caseposneg
 DEFAULT_DESCRIPTION_VALUE = _get_default_description
+DEFAULT_PARAMETRIZED_VALUE = 'no'
 DEFAULT_SUBTYPE1_VALUE = '-'
 DEFAULT_TESTTYPE_VALUE = 'functional'
 DEFAULT_TITLE_VALUE = _get_default_title
@@ -101,6 +103,7 @@ TRANSFORM_CASECOMPONENT_VALUE = _transform_to_lower
 TRANSFORM_CASEIMPORTANCE_VALUE = _transform_to_lower
 TRANSFORM_CASELEVEL_VALUE = _transform_to_lower
 TRANSFORM_CASEPOSNEG_VALUE = _transform_to_lower
+TRANSFORM_PARAMETRIZED_VALUE = _transform_to_lower
 TRANSFORM_SUBTYPE1_VALUE = _transform_to_lower
 TRANSFORM_TESTTYPE_VALUE = _transform_to_lower
 TRANSFORM_UPSTREAM_VALUE = _transform_to_lower

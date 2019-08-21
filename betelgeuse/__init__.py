@@ -64,23 +64,6 @@ def validate_key_value_option(ctx, param, value):
             '{} needs to be in format key=value'.format(param.name))
 
 
-def generate_test_id(test):
-    """Generate the test_case_id as the Python import path.
-
-    It could be either ``module.test_name`` or ``module.ClassName.test_name``
-    if the test methods is defined within a class.
-
-    :param test: a ``collector.TestFunction`` instance.
-    """
-    test_case_id_parts = [
-        test.testmodule.replace('/', '.').replace('.py', ''),
-        test.name
-    ]
-    if test.parent_class is not None:
-        test_case_id_parts.insert(-1, test.parent_class)
-    return '.'.join(test_case_id_parts)
-
-
 def load_custom_fields(custom_fields_opt):
     """Load the custom fields from the --custom-fields option.
 
@@ -428,10 +411,6 @@ def create_xml_testcase(config, testcase, automation_script_format):
         value = testcase.fields.get(field)
         if value is not None:
             element.set(attribute, value)
-        elif attribute == 'id':
-            # The testcase id is always required, generate one if it still
-            # don't have a value
-            element.set(attribute, generate_test_id(testcase))
 
     # Title and description require their own node
     for field in ('title', 'description'):
@@ -454,6 +433,7 @@ def create_xml_testcase(config, testcase, automation_script_format):
     # Steps and expected results will be mapped only if both are defined
     steps = testcase.fields.get('steps')
     expectedresults = testcase.fields.get('expectedresults')
+    test_steps = None
     if steps and expectedresults:
         test_steps = ElementTree.Element('test-steps')
         for step, expectedresult in map_steps(steps, expectedresults):
@@ -467,6 +447,25 @@ def create_xml_testcase(config, testcase, automation_script_format):
             test_step_column.text = expectedresult
             test_step.append(test_step_column)
             test_steps.append(test_step)
+
+    # Create the permutation parameter if needed
+    if testcase.fields.get('parametrized') == 'yes':
+        parameter = ElementTree.Element('parameter')
+        parameter.set('name', 'pytest parameters')
+        test_steps = test_steps or ElementTree.Element('test-steps')
+        test_step = ElementTree.Element('test-step')
+        test_step_column = ElementTree.Element('test-step-column')
+        test_step_column.set('id', 'step')
+        test_step_column.text = 'Iteration: '
+        test_step_column.append(parameter)
+        test_step.append(test_step_column)
+        test_step_column = ElementTree.Element('test-step-column')
+        test_step_column.set('id', 'expectedResult')
+        test_step_column.text = 'Pass'
+        test_step.append(test_step_column)
+        test_steps.append(test_step)
+
+    if test_steps:
         element.append(test_steps)
 
     # Finally include the custom fields
@@ -692,8 +691,9 @@ def test_case(
 @click.argument('user')
 @click.argument('project')
 @click.argument('output-path')
+@pass_config
 def test_run(
-        collect_ignore_path, custom_fields, dry_run, lookup_method,
+        config, collect_ignore_path, custom_fields, dry_run, lookup_method,
         lookup_method_custom_field_id, no_include_skipped, response_property,
         status, test_run_group_id, test_run_id, test_run_template_id,
         test_run_title, test_run_type_id, junit_path, source_code_path, user,
@@ -767,15 +767,8 @@ def test_run(
     testcases = {}
     for test in itertools.chain(*collector.collect_tests(
             source_code_path, collect_ignore_path).values()):
-        junit_test_case_id = generate_test_id(test)
-        test_id = test.fields.get('id')
-        if not test_id:
-            click.echo(
-                'Was not able to find the ID for {0}, setting it to {0}'
-                .format(junit_test_case_id)
-            )
-            test_id = junit_test_case_id
-        testcases[junit_test_case_id] = test_id
+        update_testcase_fields(config, test)
+        testcases[test.junit_id] = test
     testsuite = ElementTree.parse(junit_path).getroot()
     if testsuite.tag == 'testsuites':
         testsuite = testsuite.getchildren()[0]
@@ -783,8 +776,13 @@ def test_run(
     for testcase in testsuite.iterfind('testcase'):
         junit_test_case_id = '{0}.{1}'.format(
             testcase.get('classname'), testcase.get('name'))
-        test_case_id = testcases.get(junit_test_case_id)
-        if not test_case_id:
+        pytest_parameters = None
+        if '[' in junit_test_case_id:
+            junit_test_case_id, pytest_parameters = junit_test_case_id.split(
+                '[', 1)
+            pytest_parameters = pytest_parameters[:-1]
+        source_test_case = testcases.get(junit_test_case_id)
+        if not source_test_case:
             click.echo(
                 'Found {} on jUnit report but not on source code, skipping...'
                 .format(junit_test_case_id)
@@ -793,8 +791,21 @@ def test_run(
         test_properties = ElementTree.Element('properties')
         element = ElementTree.Element('property')
         element.set('name', 'polarion-testcase-id')
-        element.set('value', test_case_id)
+        element.set('value', source_test_case.fields['id'])
         test_properties.append(element)
+        if (pytest_parameters and
+                source_test_case.fields.get('parametrized') == 'yes'):
+            element = ElementTree.Element('property')
+            element.set('name', 'polarion-parameter-pytest parameters')
+            element.set('value', pytest_parameters)
+            test_properties.append(element)
+        elif (pytest_parameters and
+              source_test_case.fields.get('parametrized') != 'yes'):
+            click.echo(
+                '{} has a parametrized result of {} but its parametrized '
+                'field is not set to yes. Only one result will be recorded.'
+                .format(junit_test_case_id, pytest_parameters)
+            )
         testcase.append(test_properties)
     testsuites.append(testsuite)
 

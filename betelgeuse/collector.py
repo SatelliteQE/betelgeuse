@@ -6,6 +6,7 @@ import fnmatch
 import os
 
 from betelgeuse.parser import parse_docstring
+from betelgeuse.source_generator import gen_source
 
 
 class TestFunction(object):
@@ -63,7 +64,25 @@ class TestFunction(object):
         #: docstring and finally the ``__init__.py`` docstring if present. The
         #: first value found the search will stop.
         self.fields = {}
+        #: The list of decorators applied to this testcase
+        self.decorators = [
+            gen_source(decorator)
+            for decorator in self.function_def.decorator_list
+        ]
+        #: The list of decorators applied to this testcase's parent class. If
+        #: this testcase doesn'node have a parent class, then it will be
+        #: ``None``
+        self.class_decorators = None
+        if self.parent_class_def:
+            self.class_decorators = [
+                gen_source(decorator)
+                for decorator in self.parent_class_def.decorator_list
+            ]
         self._parse_docstring()
+        self.junit_id = self._generate_junit_id()
+
+        if 'id' not in self.fields:
+            self.fields['id'] = self.junit_id
 
     def _parse_docstring(self):
         """Parse package, module, class and function docstrings."""
@@ -84,6 +103,21 @@ class TestFunction(object):
             if docstring and not isinstance(docstring, type(u'')):
                 docstring = docstring.decode('utf-8')
             self.fields.update(parse_docstring(docstring))
+
+    def _generate_junit_id(self):
+        """Generate the jUnit ID for the test.
+
+        It could be either ``path.to.module.test_name`` or
+        ``path.to.module.ClassName.test_name`` if the test methods is defined
+        within a class.
+        """
+        test_case_id_parts = [
+            self.testmodule.replace('/', '.').replace('.py', ''),
+            self.name
+        ]
+        if self.parent_class is not None:
+            test_case_id_parts.insert(-1, self.parent_class)
+        return '.'.join(test_case_id_parts)
 
 
 def is_test_module(filename):
