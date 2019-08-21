@@ -693,6 +693,8 @@ def test_run(
             test_id = junit_test_case_id
         testcases[junit_test_case_id] = test_id
     testsuite = ElementTree.parse(junit_path).getroot()
+    if testsuite.tag == 'testsuites':
+        testsuite = testsuite.getchildren()[0]
 
     for testcase in testsuite.iterfind('testcase'):
         junit_test_case_id = '{0}.{1}'.format(
