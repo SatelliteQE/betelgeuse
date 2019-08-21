@@ -11,7 +11,7 @@ def test_collect_tests(path):
     """Check if ``collect_tests`` 'tests/data'collect tests."""
     tests = collector.collect_tests(path)
     assert 'tests/data/test_sample.py' in tests
-    assert len(tests['tests/data/test_sample.py']) == 3
+    assert len(tests['tests/data/test_sample.py']) == 4
 
     # Check if we are not doing a specific python module collection
     if path.endswith('.py'):
@@ -30,7 +30,7 @@ def test_collect_ignore_path(ignore_path):
     tests = collector.collect_tests('tests/data', [ignore_path])
     assert 'tests/data/ignore_dir/test_ignore_dir.py' not in tests
     assert 'tests/data/test_sample.py' in tests
-    assert len(tests['tests/data/test_sample.py']) == 3
+    assert len(tests['tests/data/test_sample.py']) == 4
 
 
 @pytest.mark.parametrize('filename', ('test_module.py', 'module_test.py'))

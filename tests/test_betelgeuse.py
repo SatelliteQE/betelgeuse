@@ -36,6 +36,8 @@ JUNIT_XML = """<testsuite tests="4" skips="0">
     <testcase classname="foo4" name="test_error">
         <error type="ExceptionName" message="Error message">...</error>
     </testcase>
+    <testcase classname="foo1" name="test_parametrized[a]" />
+    <testcase classname="foo1" name="test_parametrized[b]" />
 </testsuite>
 """
 
@@ -135,7 +137,11 @@ def test_parse_junit():
         {'classname': 'foo3', 'name': 'test_failure',
          'message': 'Failure message', 'status': 'failure', 'type': 'Type'},
         {'classname': 'foo4', 'name': 'test_error', 'message': 'Error message',
-         'status': 'error', 'type': 'ExceptionName'}
+         'status': 'error', 'type': 'ExceptionName'},
+        {'classname': 'foo1', 'name': 'test_parametrized[a]',
+         'status': 'passed'},
+        {'classname': 'foo1', 'name': 'test_parametrized[b]',
+         'status': 'passed'},
     ]
     junit_xml.close()
 
@@ -197,7 +203,7 @@ def test_test_results(cli_runner):
         assert result.exit_code == 0
         assert 'Error: 1\n' in result.output
         assert 'Failure: 1\n' in result.output
-        assert 'Passed: 2\n' in result.output
+        assert 'Passed: 4\n' in result.output
         assert 'Skipped: 1\n' in result.output
 
 
@@ -210,7 +216,7 @@ def test_test_results_default_path(cli_runner):
         assert result.exit_code == 0
         assert 'Error: 1\n' in result.output
         assert 'Failure: 1\n' in result.output
-        assert 'Passed: 2\n' in result.output
+        assert 'Passed: 4\n' in result.output
         assert 'Skipped: 1\n' in result.output
 
 
@@ -234,6 +240,7 @@ def test_create_xml_testcase():
         field: field for field in
         default_config.TESTCASE_FIELDS + default_config.TESTCASE_CUSTOM_FIELDS
     }
+    testcase.fields['parametrized'] = 'yes'
     config = BetelgeuseConfig()
     generated = ElementTree.tostring(
         create_xml_testcase(config, testcase, '{path}#{line_number}'),
@@ -248,7 +255,12 @@ def test_create_xml_testcase():
         'workitem-id="requirement" /></linked-work-items><test-steps>'
         '<test-step><test-step-column id="step">steps</test-step-column>'
         '<test-step-column id="expectedResult">expectedresults'
-        '</test-step-column></test-step></test-steps>'
+        '</test-step-column></test-step><test-step>'
+        '<test-step-column id="step">'
+        'Iteration: <parameter name="pytest parameters" />'
+        '</test-step-column>'
+        '<test-step-column id="expectedResult">Pass</test-step-column>'
+        '</test-step></test-steps>'
         '<custom-fields>'
         '<custom-field content="arch" id="arch" />'
         '<custom-field content="automation_script" id="automation_script" />'
@@ -361,17 +373,19 @@ def test_test_run(cli_runner):
                 {'name': 'test_skipped', 'testmodule': 'foo2'},
                 {'name': 'test_failure', 'testmodule': 'foo3'},
                 {'name': 'test_error', 'testmodule': 'foo4'},
+                {'name': 'test_parametrized', 'testmodule': 'foo1'},
             ]
             return_value_testcases = []
             for test in testcases:
                 t = mock.MagicMock()
+                t.docstring = ''
                 t.name = test['name']
-                t.testmodule = test['testmodule']
                 t.parent_class = None
-                if test['name'] == 'test_passed_no_id':
-                    t.fields = {}
-                else:
-                    t.fields = {'id': str(id(t))}
+                t.testmodule = test['testmodule']
+                t.fields = {'id': str(id(t))}
+                if t.name == 'test_parametrized':
+                    t.fields['parametrized'] = 'yes'
+                t.junit_id = f'{test["testmodule"]}.{test["name"]}'
                 return_value_testcases.append(t)
 
             collector.collect_tests.return_value = {
@@ -398,11 +412,7 @@ def test_test_run(cli_runner):
                     'importer.xml'
                 ]
             )
-            assert result.exit_code == 0, result.output()
-            assert result.output.strip() == (
-                'Was not able to find the ID for {0}, setting it to {0}'
-                .format('foo1.test_passed_no_id')
-            )
+            assert result.exit_code == 0, result.output
             collector.collect_tests.assert_called_once_with('source.py', ())
             assert os.path.isfile('importer.xml')
             root = ElementTree.parse('importer.xml').getroot()
@@ -437,16 +447,25 @@ def test_test_run(cli_runner):
                 properties = testcase.find('properties')
                 assert properties
                 p = properties.findall('property')
-                assert len(p) == 1
-                p = p[0]
-                if testcase.attrib['name'] == 'test_passed_no_id':
-                    polarion_testcase_id = 'foo1.test_passed_no_id'
+                assert 0 < len(p) <= 2
+                print(index)
+                print(ElementTree.tostring(testcase))
+
+                if len(p) == 2:
+                    testcase_id = str(id(return_value_testcases[-1]))
                 else:
-                    polarion_testcase_id = id(return_value_testcases[index])
-                assert p.attrib == {
+                    testcase_id = str(id(return_value_testcases[index]))
+
+                assert p[0].attrib == {
                     'name': 'polarion-testcase-id',
-                    'value': str(polarion_testcase_id),
+                    'value': testcase_id,
                 }
+
+                if len(p) == 2:
+                    assert p[1].attrib['name'] == (
+                        'polarion-parameter-pytest parameters'
+                    )
+                    assert p[1].attrib['value'] in ('a', 'b')
 
 
 def test_validate_key_value_option():
