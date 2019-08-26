@@ -13,7 +13,6 @@ import logging
 import re
 import ssl
 import time
-from collections import Counter
 from xml.dom import minidom
 from xml.etree import ElementTree
 from xml.parsers.expat import ExpatError
@@ -23,10 +22,18 @@ import click
 from betelgeuse import collector, config
 
 
-logging.captureWarnings(True)
+try:
+    logging.captureWarnings(True)
+except AttributeError:
+    # Python2.6 doesn't allow warnings to be redirected to logging module
+    pass
 
 # Avoid SSL errors
-ssl._create_default_https_context = ssl._create_unverified_context
+try:
+    ssl._create_default_https_context = ssl._create_unverified_context
+except AttributeError:
+    # Python2.6 doesn't verify HTTPS certificates by default
+    pass
 
 INVALID_CHARS_REGEX = re.compile(r'[\\/.:"<>|~!@#$?%^&\'*()+`,=]')
 
@@ -227,7 +234,10 @@ def parse_test_results(test_results):
         provided by the ``test_results`` parameter, broken down by their
         status.
     """
-    return Counter([test['status'] for test in test_results])
+    parsed = {}
+    for test in test_results:
+        parsed[test['status']] = parsed.get(test['status'], 0) + 1
+    return parsed
 
 
 pass_config = click.make_pass_decorator(config.BetelgeuseConfig, ensure=True)
@@ -352,7 +362,9 @@ def create_xml_testcase(config, testcase, automation_script_format):
             testcase.docstring = testcase.docstring.decode('utf8')
 
     # Check if any field needs a default value
-    testcase.fields = {k.lower(): v for k, v in testcase.fields.items()}
+    for k, v in testcase.fields.items():
+        testcase.fields.pop(k)
+        testcase.fields[k.lower()] = v
     testcase.fields.update(get_field_values(config, testcase))
 
     # If automation_script is not defined on the docstring generate one
@@ -676,7 +688,7 @@ def test_run(
         if (not name.startswith('polarion-custom-') and
                 not name.startswith('polarion-response-') and
                 name not in properties_names):
-            name = 'polarion-custom-{}'.format(name)
+            name = 'polarion-custom-{0}'.format(name)
         properties.append(create_xml_property(name, value))
     testsuites.append(properties)
 
@@ -696,13 +708,13 @@ def test_run(
     if testsuite.tag == 'testsuites':
         testsuite = testsuite.getchildren()[0]
 
-    for testcase in testsuite.iterfind('testcase'):
+    for testcase in testsuite.findall('testcase'):
         junit_test_case_id = '{0}.{1}'.format(
             testcase.get('classname'), testcase.get('name'))
         test_case_id = testcases.get(junit_test_case_id)
         if not test_case_id:
             click.echo(
-                'Found {} on jUnit report but not on source code, skipping...'
+                'Found {0} on jUnit report but not on source code, skipping...'
                 .format(junit_test_case_id)
             )
             continue
@@ -715,4 +727,7 @@ def test_run(
     testsuites.append(testsuite)
 
     et = ElementTree.ElementTree(testsuites)
-    et.write(output_path, encoding='utf-8', xml_declaration=True)
+    try:
+        et.write(output_path, encoding='utf-8', xml_declaration=True)
+    except TypeError:
+        et.write(output_path, encoding='utf-8')
