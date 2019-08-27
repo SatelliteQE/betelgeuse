@@ -362,9 +362,10 @@ def create_xml_testcase(config, testcase, automation_script_format):
             testcase.docstring = testcase.docstring.decode('utf8')
 
     # Check if any field needs a default value
+    fields = {}
     for k, v in testcase.fields.items():
-        testcase.fields.pop(k)
-        testcase.fields[k.lower()] = v
+        fields[k.lower()] = v
+    testcase.fields = fields
     testcase.fields.update(get_field_values(config, testcase))
 
     # If automation_script is not defined on the docstring generate one
