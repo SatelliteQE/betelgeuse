@@ -590,6 +590,10 @@ def test_case(
     ])
 )
 @click.option(
+    '--test-run-group-id',
+    help='Test Run GROUP ID to be created/updated.',
+)
+@click.option(
     '--test-run-id',
     default='test-run-{0}'.format(time.time()),
     help='Test Run ID to be created/updated.',
@@ -614,9 +618,9 @@ def test_case(
 def test_run(
         collect_ignore_path, custom_fields, dry_run, lookup_method,
         lookup_method_custom_field_id, no_include_skipped, response_property,
-        status, test_run_id, test_run_template_id, test_run_title,
-        test_run_type_id, junit_path, source_code_path, user, project,
-        output_path):
+        status, test_run_group_id, test_run_id, test_run_template_id,
+        test_run_title, test_run_type_id, junit_path, source_code_path, user,
+        project, output_path):
     """Generate an XML suited to be importer by the test-run importer.
 
     This will read the jUnit XML at JUNIT_PATH and the source code at
@@ -652,6 +656,8 @@ def test_run(
         )
     custom_fields['polarion-project-id'] = project
     custom_fields['polarion-testrun-id'] = test_run_id
+    if test_run_group_id:
+        custom_fields['polarion-group-id'] = test_run_group_id
     if test_run_template_id:
         custom_fields['polarion-testrun-template-id'] = test_run_template_id
     if test_run_title:
@@ -662,6 +668,7 @@ def test_run(
     properties_names = (
         'polarion-custom-lookup-method-field-id',
         'polarion-dry-run',
+        'polarion-group-id',
         'polarion-include-skipped',
         'polarion-lookup-method',
         'polarion-project-id',
