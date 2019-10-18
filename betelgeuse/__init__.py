@@ -521,9 +521,9 @@ def create_xml_testcase(config, testcase, automation_script_format):
 @cli.command('test-case')
 @click.option(
     '--automation-script-format',
-    help=(r'The format for the automation-script field. The variables {path} '
+    help=('The format for the automation-script field. The variables {path} '
           'and {line_number} are available and will be expanded to the test '
-          'case module path and the line number where it`s defined '
+          "case module path and the line number where it's defined "
           'respectively. Default: {path}#{line_number}'),
     default='{path}#{line_number}',
 )
