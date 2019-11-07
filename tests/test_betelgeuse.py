@@ -348,6 +348,71 @@ def test_create_xml_testcase():
     )
 
 
+def test_requirement(cli_runner):
+    """Check if requirement command works."""
+    with cli_runner.isolated_filesystem():
+        with open('source.py', 'w') as handler:
+            handler.write('')
+        with mock.patch('betelgeuse.collector') as collector:
+            return_value_testcases = []
+            for index in range(5):
+                t = mock.MagicMock()
+                t.docstring = None
+                t.fields = {'requirement': f'requirement{index}'}
+                return_value_testcases.append(t)
+
+            collector.collect_tests.return_value = {
+                'source.py': return_value_testcases,
+            }
+            result = cli_runner.invoke(
+                cli,
+                [
+                    'requirement',
+                    '--approver', 'approver1',
+                    '--approver', 'approver2',
+                    '--assignee', 'assignee',
+                    '--dry-run',
+                    '--response-property', 'property_key=property_value',
+                    'source.py',
+                    'projectid',
+                    'requirements.xml'
+                ]
+            )
+            assert result.exit_code == 0, result.output
+            assert result.output.strip() == ''
+            collector.collect_tests.assert_called_once_with('source.py', ())
+            assert os.path.isfile('requirements.xml')
+            root = ElementTree.parse('requirements.xml').getroot()
+            assert root.tag == 'requirements'
+            properties = root.find('properties')
+            assert properties
+            properties = [p.attrib for p in properties.findall('property')]
+            expected = [
+                {'name': 'lookup-method', 'value': 'name'},
+                {'name': 'dry-run', 'value': 'true'},
+            ]
+            for p in properties:
+                assert p in expected
+            for index, requirement in enumerate(root.findall('requirement')):
+                children = [
+                    ElementTree.tostring(child, encoding='unicode')
+                    for child in requirement
+                ]
+                assert children == [
+                    f'<title>requirement{index}</title>',
+                    '<custom-fields>'
+                    '<custom-field content="functional" id="reqtype" />'
+                    '</custom-fields>'
+                ]
+                assert requirement.attrib == {
+                    'approver-ids': 'approver1:approved approver2:approved',
+                    'assignee-id': 'assignee',
+                    'priority-id': 'high',
+                    'severity-id': 'should_have',
+                    'status-id': 'approved',
+                }
+
+
 def test_test_run(cli_runner):
     """Check if test run command works."""
     with cli_runner.isolated_filesystem():

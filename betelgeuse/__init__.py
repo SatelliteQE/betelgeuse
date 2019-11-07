@@ -249,16 +249,93 @@ def cli(ctx, config_module):
 
 
 @cli.command('requirement')
+@click.option(
+    '--approver',
+    help='Whom the requirments will be approved by.',
+    multiple=True,
+)
+@click.option(
+    '--assignee',
+    help='Whom the requirments will be assigned to.',
+)
+@click.option(
+    '--collect-ignore-path',
+    help='Ignore path during test collection. '
+    'This option can be specified multiple times.',
+    multiple=True,
+    type=click.Path(exists=True),
+)
+@click.option(
+    '--dry-run',
+    help='Indicate to the importer to not make any change.',
+    is_flag=True,
+)
+@click.option(
+    '--lookup-method',
+    default='name',
+    help='Indicates to the importer which lookup method to use. "id" for '
+    'requirement id or "name" for requirement title.',
+    type=click.Choice([
+        'id',
+        'name',
+    ])
+)
+@click.option(
+    '--response-property',
+    callback=validate_key_value_option,
+    help='When defined, the impoter will mark all responses with the selector.'
+    'The format is "--response-property property_key=property_value".',
+)
 @click.argument('source-code-path', type=click.Path(exists=True))
 @click.argument('project')
-def requirement(source_code_path, project):
-    """Create and/or update requirements in Polarion."""
-    click.echo(
-        'Betelgeuse stopped creating requirements because pylarion is not '
-        'supported anymore. This command will be updated and will generate a '
-        'XML file to be used with the requirements importer in a future '
-        'release.'
-    )
+@click.argument('output-path')
+@pass_config
+def requirement(
+        config, assignee, approver, collect_ignore_path, dry_run,
+        lookup_method, response_property, source_code_path, project,
+        output_path):
+    """Generate an XML suited to be importer by the requirement importer.
+
+    This will read the source code at SOURCE_CODE_PATH in order to capture the
+    requirements and generate a XML file place at OUTPUT_PATH. The generated
+    XML file will be ready to be imported by the XML Requirement Importer.
+
+    The requirements will be created on the project ID provided by PROJECT and
+    will be assigned to the Polarion user ID provided by USER.
+
+    Other requirement importer options can be set by the various options this
+    command accepts. Check their help for more information.
+    """
+    requirements = ElementTree.Element('requirements')
+    requirements.set('project-id', project)
+    if response_property:
+        response_properties = ElementTree.Element('response-properties')
+        element = ElementTree.Element('response-property')
+        element.set('name', response_property[0])
+        element.set('value', response_property[1])
+        response_properties.append(element)
+        requirements.append(response_properties)
+    properties = ElementTree.Element('properties')
+    properties.append(create_xml_property(
+        'dry-run', 'true' if dry_run else 'false'))
+    properties.append(create_xml_property(
+        'lookup-method', lookup_method))
+    requirements.append(properties)
+
+    source_testcases = itertools.chain(*collector.collect_tests(
+        source_code_path, collect_ignore_path).values())
+    cache = []
+    for testcase in source_testcases:
+        update_testcase_fields(config, testcase)
+        if ('requirement' in testcase.fields and
+                testcase.fields['requirement'] not in cache):
+            requirement_title = testcase.fields['requirement']
+            cache.append(requirement_title)
+            requirements.append(create_xml_requirement(
+                config, requirement_title, assignee, approver))
+
+    et = ElementTree.ElementTree(requirements)
+    et.write(output_path, encoding='utf-8', xml_declaration=True)
 
 
 @cli.command('test-plan')
@@ -343,18 +420,30 @@ def get_field_values(config, testcase):
     return fields
 
 
+def update_testcase_fields(config, testcase):
+    """Apply testcase fields default values and transformations."""
+    if testcase.docstring and not type(testcase.docstring) == str:
+        testcase.docstring = testcase.docstring.decode('utf8')
+
+    # Check if any field needs a default value
+    testcase.fields = {k.lower(): v for k, v in testcase.fields.items()}
+    testcase.fields.update(get_field_values(config, testcase))
+
+    # Apply the available transformations to the testcase fields
+    for field in testcase.fields.keys():
+        transform_func = getattr(
+            config, 'TRANSFORM_{}_VALUE'.format(field.upper()), None)
+        if callable(transform_func):
+            testcase.fields[field] = transform_func(
+                testcase.fields[field], testcase)
+
+
 def create_xml_testcase(config, testcase, automation_script_format):
     """Create an XML testcase element.
 
     The element will be in the format to be used by the XML test case importer.
     """
-    if testcase.docstring:
-        if not type(testcase.docstring) == str:
-            testcase.docstring = testcase.docstring.decode('utf8')
-
-    # Check if any field needs a default value
-    testcase.fields = {k.lower(): v for k, v in testcase.fields.items()}
-    testcase.fields.update(get_field_values(config, testcase))
+    update_testcase_fields(config, testcase)
 
     # If automation_script is not defined on the docstring generate one
     if 'automation_script' not in testcase.fields:
@@ -362,14 +451,6 @@ def create_xml_testcase(config, testcase, automation_script_format):
             path=testcase.module_def.path,
             line_number=testcase.function_def.lineno,
         )
-
-    # Apply the transformations before creating the XML node for the testcase
-    for field in testcase.fields.keys():
-        transform_func = getattr(
-            config, 'TRANSFORM_{}_VALUE'.format(field.upper()), None)
-        if callable(transform_func):
-            testcase.fields[field] = transform_func(
-                testcase.fields[field], testcase)
 
     # With all field processing in place, it is time to generate the XML
     # testcase node
@@ -431,6 +512,37 @@ def create_xml_testcase(config, testcase, automation_script_format):
         custom_field.set('id', field)
         custom_fields.append(custom_field)
     element.append(custom_fields)
+    return element
+
+
+def create_xml_requirement(config, requirement_title, assignee, approver):
+    """Create an XML requirement element.
+
+    The element will be in the format to be used by the XML test case importer.
+    """
+    element = ElementTree.Element('requirement')
+
+    if assignee:
+        element.set('assignee-id', assignee)
+        element.set('status-id', 'approved')
+    if approver:
+        element.set('approver-ids', ' '.join(
+            f'{approver_id}:approved' for approver_id in approver
+        ))
+    element.set('priority-id', 'high')
+    element.set('severity-id', 'should_have')
+
+    title_element = ElementTree.Element('title')
+    title_element.text = requirement_title
+    element.append(title_element)
+
+    custom_fields = ElementTree.Element('custom-fields')
+    custom_field = ElementTree.Element('custom-field')
+    custom_field.set('content', 'functional')
+    custom_field.set('id', 'reqtype')
+    custom_fields.append(custom_field)
+    element.append(custom_fields)
+
     return element
 
 
