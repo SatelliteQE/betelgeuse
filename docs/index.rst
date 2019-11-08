@@ -430,6 +430,15 @@ level* or at the *test case level*. Using the example above, since
 Betelgeuse will use its value of *Medium* for this test case alone while all
 other test cases will have a value of *High*, derived from the module.
 
+Betelgeuse is able to handle ``pytest`` parametrized tests and, in order to do
+so, set the ``parametrized`` field to ``yes`` on all tests that make use of the
+``@pytest.parametrize`` decorator or a parametrized fixture. With that, the
+``test-case`` command will generate an XML that instructs the importer to set
+the test case as being parametrized. And the ``test-run`` command will generate
+an XML that instructs the importer to set the result as an iteration result, if
+it finds a test result with ``[<pytest-parameters>]`` on its name and the
+``parametrized`` set to ``yes`` on the source code.
+
 Advanced Usage
 ==============
 
