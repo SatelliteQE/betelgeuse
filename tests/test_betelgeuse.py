@@ -66,11 +66,6 @@ SINGLE_STEP = """<p>Single step</p>"""
 
 SINGLE_EXPECTEDRESULT = """<p>Single step expected result.</p>"""
 
-TEST_PLAN_OUTPUT = (
-    'Betelgeuse stopped creating test plans because pylarion is not '
-    'supported anymore. This command will be removed in a future release.\n'
-)
-
 
 @pytest.fixture
 def cli_runner():
@@ -190,67 +185,6 @@ def test_parse_test_results():
     assert summary['failure'] == 1
     assert summary['skipped'] == 1
     assert summary['error'] == 1
-
-
-def test_test_plan(cli_runner):
-    """Check if test-plan command runs with minimal parameters."""
-    result = cli_runner.invoke(
-        cli,
-        [
-            'test-plan',
-            '--name', 'Test Plan Name',
-            'PROJECT'
-        ]
-    )
-    assert result.exit_code == 0
-    assert result.stdout == TEST_PLAN_OUTPUT
-
-
-def test_test_plan_with_custom_fields(cli_runner):
-    """Check if test-plan command runs with custom_fields."""
-    result = cli_runner.invoke(
-        cli,
-        [
-            'test-plan',
-            '--name',
-            'Test Plan Name',
-            '--custom-fields',
-            'status=done',
-            'PROJECT'
-        ]
-    )
-    assert result.exit_code == 0
-    assert result.stdout == TEST_PLAN_OUTPUT
-
-
-def test_test_plan_with_parent(cli_runner):
-    """Check if test-plan command runs when passing a parent test plan."""
-    result = cli_runner.invoke(
-        cli,
-        [
-            'test-plan',
-            '--name', 'Test Plan Name',
-            '--parent-name', 'Parent Test Plan Name',
-            'PROJECT'
-        ]
-    )
-    assert result.exit_code == 0
-    assert result.stdout == TEST_PLAN_OUTPUT
-
-
-def test_test_plan_with_iteration_type(cli_runner):
-    """Check if test-plan command creates a iteration test plan."""
-    result = cli_runner.invoke(
-        cli,
-        [
-            'test-plan',
-            '--name', 'Test Plan Name',
-            '--plan-type', 'iteration',
-            'PROJECT'
-        ]
-    )
-    assert result.exit_code == 0
-    assert result.stdout == TEST_PLAN_OUTPUT
 
 
 def test_test_results(cli_runner):
