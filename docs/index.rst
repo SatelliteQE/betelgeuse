@@ -188,9 +188,25 @@ help command
 requirement command
 -------------------
 
-Betelgeuse stopped creating requirements because pylarion is not supported
-anymore. This command will be updated and will generate a XML file to be used
-with the requirements importer in a future release.
+The ``requirement`` command generates an XML file suited to be imported by the
+Requirement XML Importer. It reads the Python test suite source code and
+generates a XML file with all the information necessary for the Requirement XML
+Importer.
+
+.. code-block:: console
+
+    $ betelgeuse requirement \
+        --assignee assignee \
+        --approver approver1 \
+        --approver approver2 \
+        sample_project/tests \
+        PROJECT \
+        betelgeuse-requirements.xml
+
+.. note::
+
+    Requirements must be created in order to link test cases to them. Make sure
+    to import the requirements before the test cases.
 
 test-case command
 -----------------
