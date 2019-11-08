@@ -13,6 +13,7 @@ Betelgeuse is a Python program that reads standard Python test cases and
 generates XML files that are suited to be imported by Polarion importers.
 Possible generated XML files are:
 
+* Requirement Importer XML
 * Test Case Importer XML
 * Test Run Importer XML
 
@@ -221,11 +222,6 @@ The example below shows how to run the command:
         PROJECT \
         betelgeuse-test-cases.xml
 
-test-plan command
------------------
-
-Betelgeuse stopped creating test plans because pylarion is not supported
-anymore. This command will be removed in a future release.
 
 test-results command
 --------------------

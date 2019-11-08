@@ -11,6 +11,7 @@ Betelgeuse
 Betelgeuse reads standard Python test cases and generates XML files that are
 suited to be imported by Polarion importers. Possible generated XML files are:
 
+* Requirement Importer XML
 * Test Case Importer XML
 * Test Run Importer XML
 
