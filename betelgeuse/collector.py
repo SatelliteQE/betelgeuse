@@ -121,6 +121,7 @@ def collect_tests(path, ignore_paths=None):
         functions.
     :return: A dict mapping a test module path and its test cases.
     """
+    path = os.path.normpath(path)
     if not ignore_paths:
         ignore_paths = ()
     tests = collections.OrderedDict()

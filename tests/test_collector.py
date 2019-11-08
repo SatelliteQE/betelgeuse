@@ -5,7 +5,8 @@ import pytest
 from betelgeuse import collector
 
 
-@pytest.mark.parametrize('path', ('tests/data', 'tests/data/test_sample.py'))
+@pytest.mark.parametrize(
+    'path', ('./tests/data', './tests/data/test_sample.py'))
 def test_collect_tests(path):
     """Check if ``collect_tests`` 'tests/data'collect tests."""
     tests = collector.collect_tests(path)
