@@ -338,39 +338,6 @@ def requirement(
     et.write(output_path, encoding='utf-8', xml_declaration=True)
 
 
-@cli.command('test-plan')
-@click.option(
-    '--name',
-    default='test-plan-{0}'.format(time.time()),
-    help='Name for new Test Plan.',
-)
-@click.option(
-    '--plan-type',
-    default='release',
-    help='Test Plans can be Releases or Iterations.',
-    type=click.Choice([
-        'release',
-        'iteration',
-    ])
-)
-@click.option(
-    '--parent-name',
-    help='Name of parent Test Plan to link to.',
-)
-@click.option(
-    '--custom-fields',
-    help='Custom fields for the test plan.',
-    multiple=True,
-)
-@click.argument('project')
-def test_plan(name, plan_type, parent_name, custom_fields, project):
-    """Create a new test plan in Polarion."""
-    click.echo(
-        'Betelgeuse stopped creating test plans because pylarion is not '
-        'supported anymore. This command will be removed in a future release.'
-    )
-
-
 @cli.command('test-results')
 @click.option(
     '--path',
