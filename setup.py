@@ -25,16 +25,17 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
     ],
     description=(
         'Betelgeuse is a Python program that reads standard Python test cases '
         'and generates XML files that are suited to be imported by Polarion '
         'importers.'
     ),
-    entry_points='''
+    entry_points="""
         [console_scripts]
         betelgeuse=betelgeuse:cli
-    ''',
+    """,
     include_package_data=True,
     license='GPLv3',
     long_description=LONG_DESCRIPTION,
