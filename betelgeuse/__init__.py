@@ -41,6 +41,7 @@ TESTCASE_ATTRIBUTES_TO_FIELDS = {
     'approver-ids': 'approvers',
     'assignee-id': 'assignee',
     'due-date': 'duedate',
+    'id': 'id',
     'initial-estimate': 'initialestimate',
     'status-id': 'status',
 }
@@ -374,18 +375,15 @@ def create_xml_testcase(config, testcase, automation_script_format):
     # testcase node
     element = ElementTree.Element('testcase')
 
-    # The testcase id is always requred, generate one if it still don't have a
-    # value
-    testcase_id = testcase.fields.get('id')
-    if testcase_id is None:
-        testcase_id = generate_test_id(testcase)
-    element.set('id', testcase_id)
-
-    # Set the status and approvers of the testcase
+    # Set the testcase element attributes
     for attribute, field in TESTCASE_ATTRIBUTES_TO_FIELDS.items():
         value = testcase.fields.get(field)
         if value is not None:
             element.set(attribute, value)
+        elif attribute == 'id':
+            # The testcase id is always required, generate one if it still
+            # don't have a value
+            element.set(attribute, generate_test_id(testcase))
 
     # Title and description require their own node
     for field in ('title', 'description'):
@@ -399,9 +397,9 @@ def create_xml_testcase(config, testcase, automation_script_format):
     if 'requirement' in testcase.fields:
         linked_work_items = ElementTree.Element('linked-work-items')
         linked_work_item = ElementTree.Element('linked-work-item')
-        linked_work_item.set('workitem-id', testcase.fields['requirement'])
-        linked_work_item.set('role-id', 'verifies')
         linked_work_item.set('lookup-method', 'name')
+        linked_work_item.set('role-id', 'verifies')
+        linked_work_item.set('workitem-id', testcase.fields['requirement'])
         linked_work_items.append(linked_work_item)
         element.append(linked_work_items)
 
@@ -429,8 +427,8 @@ def create_xml_testcase(config, testcase, automation_script_format):
         if field not in testcase.fields:
             continue
         custom_field = ElementTree.Element('custom-field')
-        custom_field.set('id', field)
         custom_field.set('content', testcase.fields[field])
+        custom_field.set('id', field)
         custom_fields.append(custom_field)
     element.append(custom_fields)
     return element
