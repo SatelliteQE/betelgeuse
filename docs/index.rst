@@ -333,24 +333,6 @@ Example using JSON format:
     value. Also, pass custom field values as string since they will be
     converted to XML where there is no type information.
 
-xml-test-case command
----------------------
-
-Alias to the `test-case command`_.
-
-.. warning::
-
-    This alias is deprecated and will be removed on a future version.
-
-xml-test-run command
---------------------
-
-Alias to the `test-run command`_.
-
-.. warning::
-
-    This alias is deprecated and will be removed on a future version.
-
 Case Study - A real world sample Test Case
 ===========================================
 
