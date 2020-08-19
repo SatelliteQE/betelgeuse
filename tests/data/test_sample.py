@@ -32,7 +32,7 @@ def test_function():
 
 @decorator
 @decorator.mark.something
-@decorator_with_args([1, b'bytes', (f'a', 'b'), None])
+@decorator_with_args([1, b'bytes', ('a', 'b'), None])
 @decorator_with_args(*[True, (True or False) and True])
 @decorator_with_args((f'{CONSTANT!r:5>} with literal {{ and }}',))
 @decorator_with_args({1, 2, -3})
