@@ -617,6 +617,11 @@ def test_case(
     type=click.Path(exists=True),
 )
 @click.option(
+    '--create-defects',
+    help='Specify to make the importer create defects for failed tests.',
+    is_flag=True,
+)
+@click.option(
     '--custom-fields',
     help='Indicates to the importer which custom fields should be set. '
     'Expected format is either id=value or JSON format {"id":"value"}. This '
@@ -648,6 +653,11 @@ def test_case(
     '--no-include-skipped',
     help='Specify to make the importer not import skipped tests.',
     is_flag=True,
+)
+@click.option(
+    '--project-span-ids',
+    help='A comma-separated list of project IDs used to set the project span '
+    'field on the test run.'
 )
 @click.option(
     '--response-property',
@@ -693,11 +703,11 @@ def test_case(
 @click.argument('output-path')
 @pass_config
 def test_run(
-        config, collect_ignore_path, custom_fields, dry_run, lookup_method,
-        lookup_method_custom_field_id, no_include_skipped, response_property,
-        status, test_run_group_id, test_run_id, test_run_template_id,
-        test_run_title, test_run_type_id, junit_path, source_code_path, user,
-        project, output_path):
+        config, collect_ignore_path, create_defects, custom_fields, dry_run,
+        lookup_method, lookup_method_custom_field_id, no_include_skipped,
+        response_property, status, test_run_group_id, test_run_id,
+        test_run_template_id, test_run_title, test_run_type_id, junit_path,
+        project_span_ids, source_code_path, user, project, output_path):
     """Generate an XML suited to be importer by the test-run importer.
 
     This will read the jUnit XML at JUNIT_PATH and the source code at
@@ -716,12 +726,12 @@ def test_run(
     properties = ElementTree.Element('properties')
     custom_fields = load_custom_fields(custom_fields)
     custom_fields.update({
+        'polarion-create-defects':
+            'true' if create_defects else 'false',
         'polarion-dry-run':
             'true' if dry_run else 'false',
         'polarion-include-skipped':
             'false' if no_include_skipped else 'true',
-        'polarion-testrun-status-id':
-            'false' if status == 'inprogress' else 'true',
     })
     if response_property:
         key = 'polarion-response-' + response_property[0]
@@ -733,6 +743,9 @@ def test_run(
         )
     custom_fields['polarion-project-id'] = project
     custom_fields['polarion-testrun-id'] = test_run_id
+    custom_fields['polarion-testrun-status-id'] = status
+    if project_span_ids:
+        custom_fields['polarion-project-span-ids'] = project_span_ids
     if test_run_group_id:
         custom_fields['polarion-group-id'] = test_run_group_id
     if test_run_template_id:
@@ -743,14 +756,16 @@ def test_run(
         custom_fields['polarion-testrun-type-id'] = test_run_type_id
     custom_fields['polarion-user-id'] = user
     properties_names = (
+        'polarion-create-defects',
         'polarion-custom-lookup-method-field-id',
         'polarion-dry-run',
         'polarion-group-id',
         'polarion-include-skipped',
         'polarion-lookup-method',
         'polarion-project-id',
-        'polarion-testrun-status-id',
+        'polarion-project-span-ids',
         'polarion-testrun-id',
+        'polarion-testrun-status-id',
         'polarion-testrun-template-id',
         'polarion-testrun-title',
         'polarion-testrun-type-id',

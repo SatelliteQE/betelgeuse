@@ -1,6 +1,7 @@
 """Betelgeuse unit tests."""
 import click
 import mock
+import operator
 import os
 import pytest
 import re
@@ -397,7 +398,9 @@ def test_test_run(cli_runner):
                     'test-run',
                     '--dry-run',
                     '--no-include-skipped',
+                    '--create-defects',
                     '--custom-fields', 'field=value',
+                    '--project-span-ids', 'project1, project2',
                     '--response-property', 'key=value',
                     '--status', 'inprogress',
                     '--test-run-id', 'test-run-id',
@@ -419,8 +422,14 @@ def test_test_run(cli_runner):
             assert root.tag == 'testsuites'
             properties = root.find('properties')
             assert properties
-            properties = [p.attrib for p in properties.findall('property')]
+            by_name = operator.itemgetter('name')
+            properties = sorted(
+                [p.attrib for p in properties.findall('property')],
+                key=by_name
+            )
+
             expected = [
+                {'name': 'polarion-create-defects', 'value': 'true'},
                 {'name': 'polarion-custom-field', 'value': 'value'},
                 {'name': 'polarion-custom-lookup-method-field-id',
                  'value': 'testCaseID'},
@@ -428,8 +437,10 @@ def test_test_run(cli_runner):
                 {'name': 'polarion-include-skipped', 'value': 'false'},
                 {'name': 'polarion-lookup-method', 'value': 'custom'},
                 {'name': 'polarion-project-id', 'value': 'projectid'},
+                {'name': 'polarion-project-span-ids',
+                 'value': 'project1, project2'},
                 {'name': 'polarion-response-key', 'value': 'value'},
-                {'name': 'polarion-testrun-status-id', 'value': 'false'},
+                {'name': 'polarion-testrun-status-id', 'value': 'inprogress'},
                 {'name': 'polarion-testrun-id', 'value': 'test-run-id'},
                 {'name': 'polarion-group-id', 'value': 'test-run-group-id'},
                 {'name': 'polarion-testrun-template-id',
@@ -439,8 +450,8 @@ def test_test_run(cli_runner):
                  'value': 'test-run-type-id'},
                 {'name': 'polarion-user-id', 'value': 'userid'},
             ]
-            for p in properties:
-                assert p in expected
+            expected.sort(key=by_name)
+            assert properties == expected
             testsuite = root.find('testsuite')
             assert testsuite
             for index, testcase in enumerate(testsuite.findall('testcase')):

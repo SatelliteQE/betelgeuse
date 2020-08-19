@@ -30,10 +30,10 @@ test-publish:
 	python setup.py bdist_wheel upload -r testpypi
 
 test:
-	py.test tests
+	py.test -vv tests
 
 test-coverage:
-	py.test --verbose --cov-report term --cov=betelgeuse tests
+	py.test -vv --cov-report term --cov=betelgeuse tests
 
 test-watch:
 	ptw tests
