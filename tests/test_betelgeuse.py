@@ -429,7 +429,7 @@ def test_test_run(cli_runner):
                 {'name': 'polarion-lookup-method', 'value': 'custom'},
                 {'name': 'polarion-project-id', 'value': 'projectid'},
                 {'name': 'polarion-response-key', 'value': 'value'},
-                {'name': 'polarion-set-testrun-finished', 'value': 'false'},
+                {'name': 'polarion-testrun-status-id', 'value': 'false'},
                 {'name': 'polarion-testrun-id', 'value': 'test-run-id'},
                 {'name': 'polarion-group-id', 'value': 'test-run-group-id'},
                 {'name': 'polarion-testrun-template-id',

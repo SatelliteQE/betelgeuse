@@ -720,7 +720,7 @@ def test_run(
             'true' if dry_run else 'false',
         'polarion-include-skipped':
             'false' if no_include_skipped else 'true',
-        'polarion-set-testrun-finished':
+        'polarion-testrun-status-id':
             'false' if status == 'inprogress' else 'true',
     })
     if response_property:
@@ -749,7 +749,7 @@ def test_run(
         'polarion-include-skipped',
         'polarion-lookup-method',
         'polarion-project-id',
-        'polarion-set-testrun-finished',
+        'polarion-testrun-status-id',
         'polarion-testrun-id',
         'polarion-testrun-template-id',
         'polarion-testrun-title',
