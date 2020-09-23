@@ -109,6 +109,47 @@ It will generate the ``test-cases.xml`` file and the added fields should be set
 with the default values configured. It will use the default values since the
 new fields are not defined on any of the ``sample_project`` test cases.
 
+Starting at version `1.8.0`, Betelgeuse supports also configuring Requirements
+fields, custom fields, fields default values and field transformation
+functions. All that work in the same fashion as for Test Cases. The difference
+is that the default value attribute will be looked by
+``DEFAULT_REQUIREMENT_{field_name.upper()}_VALUE`` and
+``TRANSFORM_REQUIREMENT_{field_name.upper()}_VALUE`` for the transformation
+function.
+
+As an example, to define a default value for the ``priority`` field, you can do
+so by having the following on your config file
+``DEFAULT_REQUIREMENT_PRIORITY_VALUE = "medium"``. If the default value is set
+as a callable, then it will be called passing the related ``Requirement``
+object. Now, trying to specify a custom transformation function for the same
+field, could be done by having ``TRANSFORM_REQUIREMENT_PRIORITY_VALUE =
+my_custom_transform`` on the config. Note that transformation functions for
+Requirements' field values will receive the related field value as first
+argument and the related ``Requirement`` object.
+
+To pass the config module to the requirements command, run the following:
+
+.. code-block:: console
+
+    $ betelgeuse --config-module my_custom_config  requirement \
+        --assignee assignee \
+        --approver approver1 \
+        --approver approver2 \
+        sample_project/tests \
+        PROJECT \
+        betelgeuse-requirements.xml
+
+.. note::
+
+    Passing the options ``--assignee`` and ``--approver`` to the command above
+    will set the values to the related field before processing the
+    configuration module. That means that the values will be overridden if the
+    config module define a default value for those field. The value passed via
+    command line will be available on the ``Requirement`` object passed to the
+    default or transformation callables. For example to access the value of
+    assignee, do the following ``requirement_obj.fields.get("assignee")``
+    (before overriding it).
+
 Default Configuration
 =====================
 
@@ -133,6 +174,12 @@ does not validate the values on Polarion.
 
 .. literalinclude:: ../betelgeuse/default_config.py
     :linenos:
+
+Rquirement objects
+==================
+
+.. autoclass:: betelgeuse.collector.Requirement
+    :members:
 
 Testcase objects
 ================

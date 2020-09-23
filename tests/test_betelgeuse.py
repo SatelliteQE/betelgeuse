@@ -300,7 +300,7 @@ def test_requirement(cli_runner):
     with cli_runner.isolated_filesystem():
         with open('source.py', 'w') as handler:
             handler.write('')
-        with mock.patch('betelgeuse.collector') as collector:
+        with mock.patch('betelgeuse.collector.collect_tests') as collect_tests:
             return_value_testcases = []
             for index in range(5):
                 t = mock.MagicMock()
@@ -308,7 +308,7 @@ def test_requirement(cli_runner):
                 t.fields = {'requirement': f'requirement{index}'}
                 return_value_testcases.append(t)
 
-            collector.collect_tests.return_value = {
+            collect_tests.return_value = {
                 'source.py': return_value_testcases,
             }
             result = cli_runner.invoke(
@@ -327,7 +327,7 @@ def test_requirement(cli_runner):
             )
             assert result.exit_code == 0, result.output
             assert result.output.strip() == ''
-            collector.collect_tests.assert_called_once_with('source.py', ())
+            collect_tests.assert_called_once_with('source.py', ())
             assert os.path.isfile('requirements.xml')
             root = ElementTree.parse('requirements.xml').getroot()
             assert root.tag == 'requirements'
