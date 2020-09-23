@@ -9,6 +9,15 @@ from betelgeuse.parser import parse_docstring
 from betelgeuse.source_generator import gen_source
 
 
+class Requirement(object):
+    """Holds information about Requirements."""
+
+    def __init__(self, title, fields=None):
+        """Title is require but initial fields values can be passed."""
+        self.title = title
+        self.fields = fields.copy() if fields else {}
+
+
 class TestFunction(object):
     """Wrapper for ``ast.FunctionDef`` which parse docstring information."""
 

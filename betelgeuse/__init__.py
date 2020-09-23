@@ -313,9 +313,30 @@ def requirement(
         if ('requirement' in testcase.fields and
                 testcase.fields['requirement'] not in cache):
             requirement_title = testcase.fields['requirement']
+            fields = {}
+            if assignee:
+                fields['assignee'] = assignee
+            if approver:
+                fields['approvers'] = approver
+            requirement = collector.Requirement(requirement_title, fields)
+            requirement.fields.update(
+                get_requirement_field_values(config, requirement)
+            )
+            for field in requirement.fields.keys():
+                transform_func = getattr(
+                    config,
+                    'TRANSFORM_REQUIREMENT_{}_VALUE'.format(field.upper()),
+                    None
+                )
+                if callable(transform_func):
+                    fields[field] = transform_func(
+                        requirement.fields[field],
+                        requirement
+                    )
             cache.append(requirement_title)
-            requirements.append(create_xml_requirement(
-                config, requirement_title, assignee, approver))
+            requirements.append(
+                create_xml_requirement(config, requirement)
+            )
 
     et = ElementTree.ElementTree(requirements)
     et.write(output_path, encoding='utf-8', xml_declaration=True)
@@ -365,6 +386,33 @@ def get_field_values(config, testcase):
                 config, 'DEFAULT_{}_VALUE'.format(field.upper()), None)
             if callable(default):
                 default = default(testcase)
+            if default is not None:
+                fields[field] = default
+    return fields
+
+
+def get_requirement_field_values(config, requirement):
+    """Return a dict of requirement fields and their values.
+
+    For each field missing a value, try to get a default value from the config
+    module and include the field and its value on the returned dict.
+
+    Fields with values other than ``None`` are returned untouched.
+
+    :param requirement: requirement title.
+    :returns: a dict with all fields populated, include requirement title.
+    """
+    fields = requirement.fields.copy()
+    for field in config.REQUIREMENT_FIELDS + config.REQUIREMENT_CUSTOM_FIELDS:
+        value = fields.get(field)
+        if value is None:
+            default = getattr(
+                config,
+                'DEFAULT_REQUIREMENT_{}_VALUE'.format(field.upper()),
+                None,
+            )
+            if callable(default):
+                default = default(requirement)
             if default is not None:
                 fields[field] = default
     return fields
@@ -481,32 +529,38 @@ def create_xml_testcase(config, testcase, automation_script_format):
     return element
 
 
-def create_xml_requirement(config, requirement_title, assignee, approver):
+def create_xml_requirement(config, requirement):
     """Create an XML requirement element.
 
     The element will be in the format to be used by the XML test case importer.
     """
     element = ElementTree.Element('requirement')
 
-    if assignee:
-        element.set('assignee-id', assignee)
+    if 'assignee' in requirement.fields:
+        element.set('assignee-id', requirement.fields['assignee'])
         element.set('status-id', 'approved')
-    if approver:
+    if 'approvers' in requirement.fields:
         element.set('approver-ids', ' '.join(
-            f'{approver_id}:approved' for approver_id in approver
+            f'{approver_id}:approved'
+            for approver_id in requirement.fields['approvers']
         ))
-    element.set('priority-id', 'high')
-    element.set('severity-id', 'should_have')
+    if requirement.fields['priority']:
+        element.set('priority-id', requirement.fields['priority'])
+    if requirement.fields['severity']:
+        element.set('severity-id', requirement.fields['severity'])
 
     title_element = ElementTree.Element('title')
-    title_element.text = requirement_title
+    title_element.text = requirement.title
     element.append(title_element)
 
     custom_fields = ElementTree.Element('custom-fields')
-    custom_field = ElementTree.Element('custom-field')
-    custom_field.set('content', 'functional')
-    custom_field.set('id', 'reqtype')
-    custom_fields.append(custom_field)
+    for field in config.REQUIREMENT_CUSTOM_FIELDS:
+        if field not in requirement.fields:
+            continue
+        custom_field = ElementTree.Element('custom-field')
+        custom_field.set('content', requirement.fields[field])
+        custom_field.set('id', field)
+        custom_fields.append(custom_field)
     element.append(custom_fields)
 
     return element
