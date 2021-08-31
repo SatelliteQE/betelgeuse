@@ -8,17 +8,26 @@ from betelgeuse import parser
 
 def _get_default_description(testcase):
     """Return the default value for description field."""
-    return parser.parse_rst(testcase.docstring)
+    if testcase.docstring:
+        return parser.parse_rst(testcase.docstring)
+    else:
+        return parser.parse_rst(testcase.class_docstring)
 
 
 def _get_default_title(testcase):
     """Return the default value for title field."""
-    return testcase.name
+    if testcase.name:
+        return testcase.name
+    else:
+        return testcase.parent_class
 
 
 def _get_default_caseposneg(testcase):
     """Return the default value for caseposneg custom field."""
-    return 'negative' if 'negative' in testcase.name.lower() else 'positive'
+    if testcase.name:
+        return 'negative' if 'negative' in testcase.name.lower() else 'positive'
+    else:
+        return 'negative' if 'negative' in testcase.parent_class.lower() else 'positive'
 
 
 def _transform_to_lower(value, requirement_or_testcase):

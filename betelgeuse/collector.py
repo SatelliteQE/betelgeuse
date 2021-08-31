@@ -21,15 +21,19 @@ class Requirement(object):
 class TestFunction(object):
     """Wrapper for ``ast.FunctionDef`` which parse docstring information."""
 
-    def __init__(self, function_def, parent_class=None, testmodule=None):
+    def __init__(self, function_def=None, parent_class=None, testmodule=None):
         """``ast.FunctionDef`` instance used to extract information."""
         #: The unparsed testcase docstring
-        self.docstring = ast.get_docstring(function_def)
-        #: The ``ast.FunctionDef`` representation of the testcase method or
-        #: function
-        self.function_def = function_def
-        #: The testcase function or method name
-        self.name = function_def.name
+        if function_def:
+            self.docstring = ast.get_docstring(function_def)
+            #: The ``ast.FunctionDef`` representation of the testcase method or
+            #: function
+            self.function_def = function_def
+            #: The testcase function or method name
+            self.name = function_def.name
+        else:
+            self.docstring = self.function_def = self.name = None
+
         if parent_class:
             #: If the testcase is a method then the parent class name will be
             #: set, otherwise it will be ``None``
@@ -68,16 +72,27 @@ class TestFunction(object):
             self.pkginit_def = None
             self.pkginit_docstring = None
         #: The dictionary that will store the field values defined for the
-        #: testcase. The field value resolution order is the test funtion or
+        #: testcase. The field value resolution order is the test function or
         #: method docstring, the class docstring if it is a method, the module
         #: docstring and finally the ``__init__.py`` docstring if present. The
         #: first value found the search will stop.
         self.fields = {}
         #: The list of decorators applied to this testcase
-        self.decorators = [
-            gen_source(decorator)
-            for decorator in self.function_def.decorator_list
-        ]
+        self.decorators = None
+        if self.function_def:
+            self.decorators = [
+                gen_source(decorator)
+                for decorator in self.function_def.decorator_list
+            ]
+        # The list of decorators applied to the scenarios tests
+        self.class_function_decorators = []
+        if not self.function_def :
+            for testdef in ast.iter_child_nodes(parent_class):
+                if isinstance(testdef, ast.FunctionDef) and testdef.name.startswith('test_'):
+                    self.class_function_decorators.extend([
+                        gen_source(decorator) for decorator in testdef.decorator_list
+                    ])
+
         #: The list of decorators applied to this testcase's parent class. If
         #: this testcase doesn'node have a parent class, then it will be
         #: ``None``
@@ -95,7 +110,11 @@ class TestFunction(object):
 
     def _parse_docstring(self):
         """Parse package, module, class and function docstrings."""
-        if self.docstring is None:
+        if not any(
+                [self.docstring,
+                 self.class_docstring,
+                 self.module_docstring,
+                 self.pkginit_docstring]):
             return
 
         # Parse package, module, class and function docstrings. Every loop
@@ -120,13 +139,22 @@ class TestFunction(object):
         ``path.to.module.ClassName.test_name`` if the test methods is defined
         within a class.
         """
-        test_case_id_parts = [
-            self.testmodule.replace('/', '.').replace('.py', ''),
-            self.name
-        ]
-        if self.parent_class is not None:
-            test_case_id_parts.insert(-1, self.parent_class)
-        return '.'.join(test_case_id_parts)
+        if self.name:
+            # Test Def JUNIT id
+            test_case_id_parts = [
+                self.testmodule.replace('/', '.').replace('.py', ''),
+                self.name
+            ]
+            if self.parent_class is not None:
+                test_case_id_parts.insert(-1, self.parent_class)
+            return '.'.join(test_case_id_parts)
+        else:
+            # Test Class JUNIT id
+            test_case_id_parts = [
+                self.testmodule.replace('/', '.').replace('.py', ''),
+                self.parent_class
+            ]
+            return '.'.join(test_case_id_parts)
 
 
 def is_test_module(filename):
@@ -157,6 +185,20 @@ def _get_tests(path):
     return tests
 
 
+def _get_scenarios(path):
+    """Collect scenarios for the test module located at ``path``."""
+    scenarios = []
+    with open(path) as handler:
+        root = ast.parse(handler.read())
+        root.path = path  # TODO improve how to pass the path to TestFunction
+        for node in ast.iter_child_nodes(root):
+            if isinstance(node, ast.ClassDef) and node.name.startswith('Test'):
+                scenarios.append(TestFunction(parent_class=node, testmodule=root))
+            elif isinstance(node, ast.FunctionDef):
+                continue
+    return scenarios
+
+
 def collect_tests(path, ignore_paths=None):
     """Walk ``path`` and collect test methods and functions found.
 
@@ -182,3 +224,30 @@ def collect_tests(path, ignore_paths=None):
             if is_test_module(filename):
                 tests[path] = _get_tests(path)
     return tests
+
+
+def collect_scenarios(path, ignore_paths=None):
+    """Walk ``path`` and collect test methods and functions found.
+
+    :param path: Either a file or directory path to look for test methods and
+        functions.
+    :return: A dict mapping a test module path and its test cases.
+    """
+    path = os.path.normpath(path)
+    if not ignore_paths:
+        ignore_paths = ()
+    scenarios = collections.OrderedDict()
+    if os.path.isfile(path) and path not in ignore_paths:
+        if is_test_module(os.path.basename(path)):
+            scenarios[path] = _get_scenarios(path)
+            return scenarios
+    for dirpath, _, filenames in os.walk(path):
+        if dirpath in ignore_paths:
+            continue
+        for filename in filenames:
+            path = os.path.join(dirpath, filename)
+            if path in ignore_paths:
+                continue
+            if is_test_module(filename):
+                scenarios[path] = _get_scenarios(path)
+    return scenarios
