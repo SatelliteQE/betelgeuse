@@ -54,7 +54,7 @@ def test_parse_rst_translator_class():
     :field3:
     """
     expected = (
-        '<div class="document">\n'
+        '<main>\n'
         '<blockquote>\n'
         '<table class="field-list simple">\n'
         '<tr><th>field1</th>\n'
@@ -70,7 +70,7 @@ def test_parse_rst_translator_class():
         '</tr>\n'
         '</table>\n'
         '</blockquote>\n'
-        '</div>\n'
+        '</main>\n'
     )
     assert parser.parse_rst(
         docstring, parser.TableFieldListTranslator) == expected
@@ -79,7 +79,7 @@ def test_parse_rst_translator_class():
 def test_parse_rst_special_characters():
     """Check if ``parse_rst`` plays nice with special characters."""
     assert parser.parse_rst(u'String with special character like é') == (
-        u'<div class="document">\n'
+        u'<main>\n'
         u'<p>String with special character like é</p>\n'
-        u'</div>\n'
+        u'</main>\n'
     )
