@@ -241,6 +241,7 @@ def cli(ctx, config_module):
     '--assignee',
     help='Whom the requirments will be assigned to.',
 )
+@click.option('--team', help='Team owning the requirement.',)
 @click.option(
     '--collect-ignore-path',
     help='Ignore path during test collection. '
@@ -274,7 +275,7 @@ def cli(ctx, config_module):
 @click.argument('output-path')
 @pass_config
 def requirement(
-        config, assignee, approver, collect_ignore_path, dry_run,
+        config, team, assignee, approver, collect_ignore_path, dry_run,
         lookup_method, response_property, source_code_path, project,
         output_path):
     """Generate an XML suited to be importer by the requirement importer.
@@ -314,6 +315,8 @@ def requirement(
                 testcase.fields['requirement'] not in cache):
             requirement_title = testcase.fields['requirement']
             fields = {}
+            if 'team' in testcase.fields:
+                fields['team'] = testcase.fields['team']
             if assignee:
                 fields['assignee'] = assignee
             if approver:
