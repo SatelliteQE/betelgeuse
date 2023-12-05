@@ -6,6 +6,7 @@ import fnmatch
 import os
 
 from betelgeuse.parser import parse_docstring
+from betelgeuse.parser import parse_markers
 from betelgeuse.source_generator import gen_source
 
 
@@ -88,10 +89,19 @@ class TestFunction(object):
                 for decorator in self.parent_class_def.decorator_list
             ]
         self._parse_docstring()
+        self._parse_markers()
         self.junit_id = self._generate_junit_id()
 
         if 'id' not in self.fields:
             self.fields['id'] = self.junit_id
+
+    def _parse_markers(self):
+        """Parse module, class and function markers."""
+        markers = [self.module_def.marker_list,
+                   self.class_decorators,
+                   self.decorators]
+        if markers:
+            self.fields.update({'markers': parse_markers(markers)})
 
     def _parse_docstring(self):
         """Parse package, module, class and function docstrings."""
@@ -137,12 +147,33 @@ def is_test_module(filename):
     return False
 
 
+def _module_markers(module_def):
+    """Extract markers applied to testcases from the test module level.
+
+    The markers list would be collected from the pytestmark global variable.
+    """
+    markers = []
+    for node in module_def.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == 'pytestmark':
+                    if isinstance(node.value, ast.List):
+                        for item in node.value.elts:
+                            if isinstance(item, ast.Attribute):
+                                markers.append(item.attr)
+                    elif isinstance(node.value, ast.Attribute):
+                        markers.append(node.value.attr)
+    return markers or None
+
+
 def _get_tests(path):
     """Collect tests for the test module located at ``path``."""
     tests = []
     with open(path) as handler:
         root = ast.parse(handler.read())
         root.path = path  # TODO improve how to pass the path to TestFunction
+        # Updating test module with module level markers
+        root.__dict__['marker_list'] = _module_markers(root)
         for node in ast.iter_child_nodes(root):
             if isinstance(node, ast.ClassDef):
                 [
