@@ -187,3 +187,30 @@ def parse_docstring(docstring=None):
             field_value = output
             fields_dict[field_name] = field_value
     return fields_dict
+
+
+def parse_markers(all_markers=None):
+    """Parse the markers."""
+    ignore_list = ['parametrize', 'skipif', 'usefixtures', 'skip_if_not_set']
+    resolved_markers = []
+
+    def _process_marker(marker):
+        # Fetching exact marker name
+        marker_name = marker.split('mark.')[-1] if 'mark' in marker else marker
+
+        # ignoring the marker if in ignore list
+        if not any(ignore_word in marker_name for ignore_word in ignore_list):
+            resolved_markers.append(marker_name)
+
+    for sec_marker in all_markers:
+        # If the marker is none
+        if not sec_marker:
+            continue
+        elif isinstance(sec_marker, list):
+            for marker in sec_marker:
+                _process_marker(marker)
+        else:
+            _process_marker(sec_marker)
+
+    resolved_markers = ', '.join(resolved_markers)
+    return resolved_markers

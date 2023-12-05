@@ -423,7 +423,7 @@ def get_requirement_field_values(config, requirement):
 
 def update_testcase_fields(config, testcase):
     """Apply testcase fields default values and transformations."""
-    if testcase.docstring and not type(testcase.docstring) == str:
+    if testcase.docstring and not isinstance(testcase.docstring, str):
         testcase.docstring = testcase.docstring.decode('utf8')
 
     # Check if any field needs a default value
