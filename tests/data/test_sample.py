@@ -1,7 +1,10 @@
 # encoding=utf-8
 """Sample test module."""
 import unittest
+import pytest
 
+
+pytestmark = [pytest.mark.run_in_one_thread, pytest.mark.tier1]
 
 CONSTANT = 'contant-value'
 
@@ -72,3 +75,14 @@ class TestCase(unittest.TestCase):
 
     def test_without_docstring(self):  # noqa: D102
         pass
+
+
+@pytest.mark.on_prem_provisioning
+class TestclasswithMarkers:
+    """Class to verify tests markers are collected from class."""
+
+    @pytest.mark.skipif(2 == 3, reason='2 is not 3')
+    @pytest.mark.osp
+    def test_markers_sample(self):
+        """Test for markers at test level."""
+        assert True

@@ -83,3 +83,27 @@ def test_parse_rst_special_characters():
         u'<p>String with special character like é</p>\n'
         u'</main>\n'
     )
+
+
+def test_parse_markers():
+    """
+    Test if the markers list is parsed.
+
+    List should be comma separated list of markers from all levels after
+    removing 'pytest.mark' text and ignore some markers.
+    """
+    _mod_markers = ['pytest.mark.e2e', 'pytest.mark.destructive']
+    _class_markers = [
+        'pytest.mark.on_prem_provisioning',
+        "pytest.mark.usefixtures('cleandir')"
+    ]
+    _test_markers = [
+        "pytest.mark.parametrize('something', ['a', 'b'])",
+        'pytest.mark.skipif(not settings.robottelo.REPOS_HOSTING_URL)',
+        'pytest.mark.tier1'
+    ]
+    _all_markers = [_mod_markers, _class_markers, _test_markers]
+
+    expected = 'e2e, destructive, on_prem_provisioning, tier1'
+
+    assert parser.parse_markers(_all_markers) == expected
