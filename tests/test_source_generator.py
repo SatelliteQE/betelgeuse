@@ -37,3 +37,14 @@ def test_source_generator():
         '(lambda v: (v if v else None))'
         ')',
     ]
+
+
+def test_source_markers():
+    """Verifies if the test collection collects test markers."""
+    tests = collector.collect_tests('tests/data/test_sample.py')
+    marked_test = [
+        test for test in tests['tests/data/test_sample.py']
+        if test.name == 'test_markers_sample'
+    ].pop()
+    assert marked_test.fields['markers'] == ('run_in_one_thread, tier1, '
+                                             'on_prem_provisioning, osp')
