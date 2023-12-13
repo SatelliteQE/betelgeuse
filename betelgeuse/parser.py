@@ -189,18 +189,26 @@ def parse_docstring(docstring=None):
     return fields_dict
 
 
-def parse_markers(all_markers=None):
-    """Parse the markers."""
-    ignore_list = ['parametrize', 'skipif', 'usefixtures', 'skip_if_not_set']
+def parse_markers(all_markers=None, config=None):
+    """Parse the markers from module, class and test level for a test.
+
+    This removes the mark prepended words and also pops out the
+    ignorable marker from the list received from the config object.
+
+    :returns string: Comma separated list of markers from all levels for a test
+    """
     resolved_markers = []
+    ignore_list = getattr(config, 'MARKERS_IGNORE_LIST', None)
 
     def _process_marker(marker):
         # Fetching exact marker name
-        marker_name = marker.split('mark.')[-1] if 'mark' in marker else marker
+        marker_name = marker.split('mark.')[-1]
 
         # ignoring the marker if in ignore list
-        if not any(ignore_word in marker_name for ignore_word in ignore_list):
-            resolved_markers.append(marker_name)
+        if ignore_list and any(
+                ignore_word in marker_name for ignore_word in ignore_list):
+            return
+        resolved_markers.append(marker_name)
 
     for sec_marker in all_markers:
         # If the marker is none
@@ -212,5 +220,4 @@ def parse_markers(all_markers=None):
         else:
             _process_marker(sec_marker)
 
-    resolved_markers = ', '.join(resolved_markers)
-    return resolved_markers
+    return ', '.join(resolved_markers)

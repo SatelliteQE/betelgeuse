@@ -22,7 +22,10 @@ class Requirement(object):
 class TestFunction(object):
     """Wrapper for ``ast.FunctionDef`` which parse docstring information."""
 
-    def __init__(self, function_def, parent_class=None, testmodule=None):
+    def __init__(
+            self, function_def, parent_class=None, testmodule=None,
+            config=None
+    ):
         """``ast.FunctionDef`` instance used to extract information."""
         #: The unparsed testcase docstring
         self.docstring = ast.get_docstring(function_def)
@@ -89,19 +92,19 @@ class TestFunction(object):
                 for decorator in self.parent_class_def.decorator_list
             ]
         self._parse_docstring()
-        self._parse_markers()
+        self._parse_markers(config)
         self.junit_id = self._generate_junit_id()
 
         if 'id' not in self.fields:
             self.fields['id'] = self.junit_id
 
-    def _parse_markers(self):
+    def _parse_markers(self, config=None):
         """Parse module, class and function markers."""
         markers = [self.module_def.marker_list,
                    self.class_decorators,
                    self.decorators]
         if markers:
-            self.fields.update({'markers': parse_markers(markers)})
+            self.fields.update({'markers': parse_markers(markers, config)})
 
     def _parse_docstring(self):
         """Parse package, module, class and function docstrings."""
@@ -166,7 +169,7 @@ def _module_markers(module_def):
     return markers or None
 
 
-def _get_tests(path):
+def _get_tests(path, config=None):
     """Collect tests for the test module located at ``path``."""
     tests = []
     with open(path) as handler:
@@ -177,20 +180,22 @@ def _get_tests(path):
         for node in ast.iter_child_nodes(root):
             if isinstance(node, ast.ClassDef):
                 [
-                    tests.append(TestFunction(subnode, node, root))
+                    tests.append(TestFunction(subnode, node, root, config))
                     for subnode in ast.iter_child_nodes(node)
                     if isinstance(subnode, ast.FunctionDef) and
                     subnode.name.startswith('test_')
                 ]
             elif (isinstance(node, ast.FunctionDef) and
                     node.name.startswith('test_')):
-                tests.append(TestFunction(node, testmodule=root))
+                tests.append(TestFunction(
+                    node, testmodule=root, config=config))
     return tests
 
 
-def collect_tests(path, ignore_paths=None):
+def collect_tests(path, ignore_paths=None, config=None):
     """Walk ``path`` and collect test methods and functions found.
 
+    :param config: The config object of `config.BetelgeuseConfig`
     :param path: Either a file or directory path to look for test methods and
         functions.
     :return: A dict mapping a test module path and its test cases.
@@ -201,7 +206,7 @@ def collect_tests(path, ignore_paths=None):
     tests = collections.OrderedDict()
     if os.path.isfile(path) and path not in ignore_paths:
         if is_test_module(os.path.basename(path)):
-            tests[path] = _get_tests(path)
+            tests[path] = _get_tests(path, config)
             return tests
     for dirpath, _, filenames in os.walk(path):
         if dirpath in ignore_paths:
@@ -211,5 +216,5 @@ def collect_tests(path, ignore_paths=None):
             if path in ignore_paths:
                 continue
             if is_test_module(filename):
-                tests[path] = _get_tests(path)
+                tests[path] = _get_tests(path, config)
     return tests

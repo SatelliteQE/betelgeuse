@@ -1,6 +1,7 @@
 # coding=utf-8
 """Tests for :mod:`betelgeuse.parser`."""
 import pytest
+import mock
 
 from betelgeuse import parser
 
@@ -92,7 +93,7 @@ def test_parse_markers():
     List should be comma separated list of markers from all levels after
     removing 'pytest.mark' text and ignore some markers.
     """
-    _mod_markers = ['pytest.mark.e2e', 'pytest.mark.destructive']
+    _mod_markers = 'pytest.mark.destructive'
     _class_markers = [
         'pytest.mark.on_prem_provisioning',
         "pytest.mark.usefixtures('cleandir')"
@@ -104,6 +105,8 @@ def test_parse_markers():
     ]
     _all_markers = [_mod_markers, _class_markers, _test_markers]
 
-    expected = 'e2e, destructive, on_prem_provisioning, tier1'
-
-    assert parser.parse_markers(_all_markers) == expected
+    expected = 'destructive, on_prem_provisioning, tier1'
+    config = mock.MagicMock()
+    config.MARKERS_IGNORE_LIST = [
+        'parametrize', 'skipif', 'usefixtures', 'skip_if_not_set']
+    assert parser.parse_markers(_all_markers, config=config) == expected
