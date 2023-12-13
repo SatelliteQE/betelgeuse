@@ -656,7 +656,7 @@ def test_case(
     testcases.append(properties)
 
     source_testcases = itertools.chain(*collector.collect_tests(
-        source_code_path, collect_ignore_path).values())
+        source_code_path, collect_ignore_path, config=config).values())
     for testcase in source_testcases:
         testcases.append(
             create_xml_testcase(config, testcase, automation_script_format))
