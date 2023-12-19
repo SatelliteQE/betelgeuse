@@ -1,4 +1,5 @@
 """Parsers for test docstrings."""
+import re
 from collections import namedtuple
 from io import StringIO
 from xml.dom import minidom
@@ -200,14 +201,21 @@ def parse_markers(all_markers=None, config=None):
     resolved_markers = []
     ignore_list = getattr(config, 'MARKERS_IGNORE_LIST', None)
 
-    def _process_marker(marker):
-        # Fetching exact marker name
-        marker_name = marker.split('mark.')[-1]
+    def _process_marker(_marker):
+
+        marker_name = re.findall(
+            r'(?:pytest\.mark\.)?([^(\s()]+)(?=\s*\(|\s*$)', _marker)
+        if marker_name:
+            marker_name = marker_name[0]
 
         # ignoring the marker if in ignore list
         if ignore_list and any(
-                ignore_word in marker_name for ignore_word in ignore_list):
+                re.fullmatch(
+                    ignore_word, marker_name
+                ) for ignore_word in ignore_list
+        ):
             return
+
         resolved_markers.append(marker_name)
 
     for sec_marker in all_markers:
