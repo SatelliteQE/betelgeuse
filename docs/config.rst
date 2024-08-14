@@ -175,8 +175,8 @@ does not validate the values on Polarion.
 .. literalinclude:: ../betelgeuse/default_config.py
     :linenos:
 
-Rquirement objects
-==================
+Requirement objects
+===================
 
 .. autoclass:: betelgeuse.collector.Requirement
     :members:

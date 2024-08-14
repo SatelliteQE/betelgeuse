@@ -53,7 +53,7 @@ OBJ_CACHE = {'requirements': {}}
 
 
 def validate_key_value_option(ctx, param, value):
-    """Validate an option that expects key=value formated values."""
+    """Validate an option that expects key=value formatted values."""
     if value is None:
         return
     try:
@@ -234,12 +234,12 @@ def cli(ctx, config_module):
 @cli.command('requirement')
 @click.option(
     '--approver',
-    help='Whom the requirments will be approved by.',
+    help='Whom the requirements will be approved by.',
     multiple=True,
 )
 @click.option(
     '--assignee',
-    help='Whom the requirments will be assigned to.',
+    help='Whom the requirements will be assigned to.',
 )
 @click.option('--team', help='Team owning the requirement.',)
 @click.option(
