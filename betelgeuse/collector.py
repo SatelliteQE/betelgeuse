@@ -39,7 +39,7 @@ class TestFunction(object):
             #: set, otherwise it will be ``None``
             self.parent_class = parent_class.name
             #: If the testcase is a method then the parent ``ast.ClasDef``
-            #: representation of the parent calss will be set, otherwise it
+            #: representation of the parent class will be set, otherwise it
             #: will be ``None``
             self.parent_class_def = parent_class
             #: If test case is a method then the parent class docstring will be
@@ -72,7 +72,7 @@ class TestFunction(object):
             self.pkginit_def = None
             self.pkginit_docstring = None
         #: The dictionary that will store the field values defined for the
-        #: testcase. The field value resolution order is the test funtion or
+        #: testcase. The field value resolution order is the test function or
         #: method docstring, the class docstring if it is a method, the module
         #: docstring and finally the ``__init__.py`` docstring if present. The
         #: first value found the search will stop.
