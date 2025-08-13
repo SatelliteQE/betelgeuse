@@ -244,7 +244,7 @@ def test_create_xml_testcase():
     testcase.fields['parametrized'] = 'yes'
     config = BetelgeuseConfig()
     generated = ElementTree.tostring(
-        create_xml_testcase(config, testcase, '{path}#{line_number}'),
+        create_xml_testcase(config, testcase, '{path}#{line_number}', 'name'),
         encoding='unicode'
     )
     assert generated == (

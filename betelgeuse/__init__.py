@@ -439,7 +439,8 @@ def update_testcase_fields(config, testcase):
                 testcase.fields[field], testcase)
 
 
-def create_xml_testcase(config, testcase, automation_script_format):
+def create_xml_testcase(config, testcase, automation_script_format,
+                        requirement_lookup_method):
     """Create an XML testcase element.
 
     The element will be in the format to be used by the XML test case importer.
@@ -475,7 +476,7 @@ def create_xml_testcase(config, testcase, automation_script_format):
     if 'requirement' in testcase.fields:
         linked_work_items = ElementTree.Element('linked-work-items')
         linked_work_item = ElementTree.Element('linked-work-item')
-        linked_work_item.set('lookup-method', 'name')
+        linked_work_item.set('lookup-method', requirement_lookup_method)
         linked_work_item.set('role-id', 'verifies')
         linked_work_item.set('workitem-id', testcase.fields['requirement'])
         linked_work_items.append(linked_work_item)
@@ -603,6 +604,16 @@ def create_xml_requirement(config, requirement):
     ])
 )
 @click.option(
+    '--requirement-lookup-method',
+    default='name',
+    help='Indicates which lookup method to use for linked requirements: "id" '
+    'for requirement id or "name" for requirement title.',
+    type=click.Choice([
+        'id',
+        'name',
+    ])
+)
+@click.option(
     '--lookup-method-custom-field-id',
     default='testCaseID',
     help='Indicates to the importer which field ID to use when using the '
@@ -620,8 +631,9 @@ def create_xml_requirement(config, requirement):
 @pass_config
 def test_case(
         config, automation_script_format, collect_ignore_path, dry_run,
-        lookup_method, lookup_method_custom_field_id, response_property,
-        source_code_path, project, output_path):
+        lookup_method, lookup_method_custom_field_id,
+        requirement_lookup_method, response_property, source_code_path,
+        project, output_path):
     """Generate an XML suited to be importer by the test-case importer.
 
     This will read the source code at SOURCE_CODE_PATH in order to capture the
@@ -659,7 +671,11 @@ def test_case(
         source_code_path, collect_ignore_path, config=config).values())
     for testcase in source_testcases:
         testcases.append(
-            create_xml_testcase(config, testcase, automation_script_format))
+            create_xml_testcase(
+                config, testcase, automation_script_format,
+                requirement_lookup_method
+            )
+        )
 
     et = ElementTree.ElementTree(testcases)
     et.write(output_path, encoding='utf-8', xml_declaration=True)
